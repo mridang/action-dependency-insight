@@ -1,0 +1,20 @@
+name: Dependency Assist Action
+
+description: |
+  Finds unused or undeclared dependencies in your project and so much more
+
+author: mridang
+branding:
+  color: blue
+  icon: box
+
+inputs:
+  working-directory:
+    description: >
+      The directory containing the project to be analysed.
+    required: false
+    default: '.'
+
+runs:
+  using: node20
+  main: dist/main.cjs
