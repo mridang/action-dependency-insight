@@ -1,0 +1,16 @@
+{
+  "name": "vendor/sample-php",
+  "require": {
+    "php": "^8.0",
+    "guzzlehttp/guzzle": "^7.0",
+    "nesbot/carbon": "^2.0"
+  },
+  "require-dev": {
+    "icanhazstring/composer-unused": "^0.8"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
+    }
+  }
+}
