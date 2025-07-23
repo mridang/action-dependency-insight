@@ -81,7 +81,7 @@ export class MavenChecker implements IDependencyChecker {
   }
 
   private defaultRunFn(projectPath: string): string {
-    const command = `mvn validate --quiet && cat target/site/dependency-analysis.html`;
+    const command = `mvn dependency:analyze-report && cat target/site/dependency-analysis.html`;
     return execSync(command, {
       cwd: projectPath,
       encoding: 'utf-8',
