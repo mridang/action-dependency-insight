@@ -76864,7 +76864,7 @@ class MavenChecker {
         }
     }
     defaultRunFn(projectPath) {
-        const command = `mvn validate --quiet && cat target/site/dependency-analysis.html`;
+        const command = `mvn dependency:analyze-report && cat target/site/dependency-analysis.html`;
         return child_process.execSync(command, {
             cwd: projectPath,
             encoding: 'utf-8',
