@@ -76822,7 +76822,7 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     mvn site
     \`\`\`
 
-    Then open \`target/site/dependency-analysis.html\` in your browser.
+    Then open \`target/site/dependency-analysis.html\` or \`target/reports/dependency-analysis.html\` in your browser.
 
 2.  **Check Configuration:** Many inaccuracies can be resolved by configuring the underlying tool. The plugin has various configuration options to fine-tune its analysis. Please refer to the official **[dependency:analyze documentation](https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html)**.
 
@@ -76864,12 +76864,18 @@ class MavenChecker {
         }
     }
     defaultRunFn(projectPath) {
-        const command = `mvn dependency:analyze-report && cat target/site/dependency-analysis.html`;
-        return child_process.execSync(command, {
+        const command = 'mvn dependency:analyze-report';
+        child_process.execSync(command, {
             cwd: projectPath,
             encoding: 'utf-8',
             stdio: 'pipe',
         });
+        const siteReportPath = path__namespace.join(projectPath, 'target', 'site', 'dependency-analysis.html');
+        const reportsReportPath = path__namespace.join(projectPath, 'target', 'reports', 'dependency-analysis.html');
+        const reportPath = fs.existsSync(reportsReportPath)
+            ? reportsReportPath
+            : siteReportPath;
+        return fs.readFileSync(reportPath, 'utf-8');
     }
     parseSection($, sectionId, status, projectPath) {
         const results = [];
