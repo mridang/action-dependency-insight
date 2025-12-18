@@ -1,4 +1,6 @@
 import { execSync } from 'child_process';
+import { existsSync, readFileSync } from 'fs';
+import * as path from 'path';
 import * as cheerio from 'cheerio';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
@@ -24,7 +26,7 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     mvn site
     \`\`\`
 
-    Then open \`target/site/dependency-analysis.html\` in your browser.
+    Then open \`target/site/dependency-analysis.html\` or \`target/reports/dependency-analysis.html\` in your browser.
 
 2.  **Check Configuration:** Many inaccuracies can be resolved by configuring the underlying tool. The plugin has various configuration options to fine-tune its analysis. Please refer to the official **[dependency:analyze documentation](https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html)**.
 
@@ -81,12 +83,28 @@ export class MavenChecker implements IDependencyChecker {
   }
 
   private defaultRunFn(projectPath: string): string {
-    const command = `mvn dependency:analyze-report && cat target/site/dependency-analysis.html`;
-    return execSync(command, {
+    const command = 'mvn dependency:analyze-report';
+    execSync(command, {
       cwd: projectPath,
       encoding: 'utf-8',
       stdio: 'pipe',
     });
+    const siteReportPath = path.join(
+      projectPath,
+      'target',
+      'site',
+      'dependency-analysis.html',
+    );
+    const reportsReportPath = path.join(
+      projectPath,
+      'target',
+      'reports',
+      'dependency-analysis.html',
+    );
+    const reportPath = existsSync(reportsReportPath)
+      ? reportsReportPath
+      : siteReportPath;
+    return readFileSync(reportPath, 'utf-8');
   }
 
   private parseSection(
