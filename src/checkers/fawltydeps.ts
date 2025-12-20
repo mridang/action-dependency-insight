@@ -1,4 +1,6 @@
 import { execSync } from 'child_process';
+import { existsSync } from 'fs';
+import * as path from 'path';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
   AnalysisResult,
@@ -28,6 +30,10 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
 1.  **Run Locally:** Execute the tool in your local environment to replicate the findings. This helps isolate whether the issue is with the tool's analysis or the GitHub Action's environment.
 
     \`\`\`bash
+    # Using uv (uv.lock)
+    uv run fawltydeps
+
+    # Using Poetry (poetry.lock)
     poetry run fawltydeps
     \`\`\`
 
@@ -86,7 +92,21 @@ export class FawltyDepsChecker implements IDependencyChecker {
   }
 
   private defaultRunFn(projectPath: string): string {
-    const command: string = `poetry run fawltydeps --json`;
+    const poetryLockPath = path.join(projectPath, 'poetry.lock');
+    const uvLockPath = path.join(projectPath, 'uv.lock');
+
+    const command = existsSync(poetryLockPath)
+      ? 'poetry run fawltydeps --json'
+      : existsSync(uvLockPath)
+        ? 'uv run fawltydeps --json'
+        : null;
+
+    if (!command) {
+      throw new Error(
+        'No supported Python lockfile found. Add poetry.lock or uv.lock to run FawltyDeps.',
+      );
+    }
+
     try {
       return execSync(command, { cwd: projectPath, encoding: 'utf-8' });
     } catch (error) {

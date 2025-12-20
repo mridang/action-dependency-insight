@@ -226,7 +226,8 @@ If you encounter inaccurate results:
    ./vendor/bin/composer-unused
 
    # For Python
-   poetry run fawltydeps
+   uv run fawltydeps       # if using uv (uv.lock)
+   poetry run fawltydeps   # if using Poetry (poetry.lock)
    ```
 
 2. **Check Configuration**: Review the configuration options for the relevant tool and add appropriate config files to fine-tune the analysis.
