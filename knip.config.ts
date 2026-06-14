@@ -1,4 +1,4 @@
 export default {
-  ignore: ['knip.config.ts'],
+  ignore: ['knip.config.ts', 'test/checkers/**'],
   ignoreDependencies: [/^@semantic-release\//],
 };
