@@ -13,7 +13,7 @@ inputs:
     description: >
       The directory containing the project to be analysed.
     required: false
-    default: '.'
+    default: .
 
 runs:
   using: node24
