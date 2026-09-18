@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { existsSync } from 'fs';
 import * as path from 'path';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
@@ -108,7 +109,11 @@ export class FawltyDepsChecker implements IDependencyChecker {
     }
 
     try {
-      return execSync(command, { cwd: projectPath, encoding: 'utf-8' });
+      return execSync(command, {
+        cwd: projectPath,
+        encoding: 'utf-8',
+        maxBuffer: MAX_OUTPUT_BUFFER,
+      });
     } catch (error) {
       // @ts-expect-error since these aren't errors
       if (error instanceof Error && [1, 2, 3, 4, 5].includes(error.status)) {

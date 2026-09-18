@@ -27251,6 +27251,23 @@ function requireCore () {
 var coreExports = requireCore();
 
 /**
+ * Output buffer ceiling for the child processes the checkers shell out to.
+ *
+ * Node's `execSync` defaults `maxBuffer` to 1 MiB. When a checker's stdout
+ * exceeds that, Node kills the child and reports `ENOBUFS`, which surfaces here
+ * as an opaque "Execution failed for <tool>: spawnSync /bin/sh ENOBUFS" rather
+ * than anything the caller can act on. Generated SDKs routinely run to
+ * thousands of files, and a JSON report over a tree that size clears 1 MiB
+ * easily, so the default turns a healthy repository into a hard CI failure
+ * purely on size.
+ *
+ * 64 MiB is far above any report these tools realistically emit while still
+ * bounding a runaway process. The buffer is allocated lazily by Node, so a
+ * generous ceiling costs nothing for the common small-output case.
+ */
+const MAX_OUTPUT_BUFFER = 64 * 1024 * 1024;
+
+/**
  * The status of a dependency finding.
  */
 var DependencyStatus;
@@ -27361,6 +27378,7 @@ class KnipChecker {
             cwd: projectPath,
             stdio: 'pipe',
             encoding: 'utf-8',
+            maxBuffer: MAX_OUTPUT_BUFFER,
         });
     }
     parseOutput(jsonOutput) {
@@ -27435,7 +27453,11 @@ class ComposerUnusedChecker {
     }
     defaultRunFn(projectPath) {
         const command = `./vendor/bin/composer-unused --no-progress --ignore-exit-code --output-format=json`;
-        return child_process.execSync(command, { cwd: projectPath, encoding: 'utf-8' });
+        return child_process.execSync(command, {
+            cwd: projectPath,
+            encoding: 'utf-8',
+            maxBuffer: MAX_OUTPUT_BUFFER,
+        });
     }
     parseOutput(jsonOutput, projectPath) {
         const data = JSON.parse(jsonOutput);
@@ -27524,7 +27546,11 @@ class FawltyDepsChecker {
             throw new Error('No supported Python lockfile found. Add poetry.lock or uv.lock to run FawltyDeps.');
         }
         try {
-            return child_process.execSync(command, { cwd: projectPath, encoding: 'utf-8' });
+            return child_process.execSync(command, {
+                cwd: projectPath,
+                encoding: 'utf-8',
+                maxBuffer: MAX_OUTPUT_BUFFER,
+            });
         }
         catch (error) {
             // @ts-expect-error since these aren't errors
@@ -77427,6 +77453,7 @@ class MavenChecker {
             cwd: projectPath,
             encoding: 'utf-8',
             stdio: 'pipe',
+            maxBuffer: MAX_OUTPUT_BUFFER,
         });
         const siteReportPath = path__namespace.join(projectPath, 'target', 'site', 'dependency-analysis.html');
         const reportsReportPath = path__namespace.join(projectPath, 'target', 'reports', 'dependency-analysis.html');

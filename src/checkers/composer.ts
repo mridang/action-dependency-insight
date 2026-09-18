@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
   AnalysisResult,
@@ -82,7 +83,11 @@ export class ComposerUnusedChecker implements IDependencyChecker {
 
   private defaultRunFn(projectPath: string): string {
     const command: string = `./vendor/bin/composer-unused --no-progress --ignore-exit-code --output-format=json`;
-    return execSync(command, { cwd: projectPath, encoding: 'utf-8' });
+    return execSync(command, {
+      cwd: projectPath,
+      encoding: 'utf-8',
+      maxBuffer: MAX_OUTPUT_BUFFER,
+    });
   }
 
   private parseOutput(

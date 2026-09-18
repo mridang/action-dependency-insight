@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
   AnalysisResult,
@@ -121,6 +122,7 @@ export class KnipChecker implements IDependencyChecker {
       cwd: projectPath,
       stdio: 'pipe',
       encoding: 'utf-8',
+      maxBuffer: MAX_OUTPUT_BUFFER,
     });
   }
 

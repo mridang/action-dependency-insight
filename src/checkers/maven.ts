@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { existsSync, readFileSync } from 'fs';
 import * as path from 'path';
 import * as cheerio from 'cheerio';
@@ -88,6 +89,7 @@ export class MavenChecker implements IDependencyChecker {
       cwd: projectPath,
       encoding: 'utf-8',
       stdio: 'pipe',
+      maxBuffer: MAX_OUTPUT_BUFFER,
     });
     const siteReportPath = path.join(
       projectPath,
