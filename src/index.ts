@@ -10,7 +10,10 @@ import { AnalysisResult } from './types.js';
 import { getCheckersForProject } from './checkers/index.js';
 import { ConsoleFormatter } from './formatters/console-formatter.js';
 import { SummaryFormatter } from './formatters/summary-formatter.js';
-import { Context } from '@actions/github/lib/context.js';
+import { context } from '@actions/github';
+
+type Context = typeof context;
+const ContextCtor = context.constructor as new () => Context;
 
 /**
  * Retrieves the working directory from the action's 'working-directory' input.
@@ -55,7 +58,7 @@ const consoleFormatter = new ConsoleFormatter();
  */
 // noinspection JSUnusedLocalSymbols
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function run(_ghCtx: Context = new Context()): Promise<void> {
+export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
   try {
     const workingDirectory = getWorkingDirectory();
     info(`Analyzing project at: ${workingDirectory}`);
