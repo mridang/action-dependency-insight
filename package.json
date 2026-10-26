@@ -41,8 +41,8 @@
   "homepage": "https://github.com/mridang/action-dependency-insight",
   "bugs": "https://github.com/mridang/action-dependency-insight/issues",
   "dependencies": {
-    "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.1",
+    "@actions/core": "^3.0.1",
+    "@actions/github": "^9.1.1",
     "cheerio": "^1.0.0",
     "domhandler": "^5.0.3"
   },
