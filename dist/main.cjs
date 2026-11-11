@@ -3,14 +3,18 @@
 var os = require('os');
 require('crypto');
 var fs = require('fs');
-var path = require('path');
+require('path');
 require('http');
 require('https');
 require('string_decoder');
 require('events');
-var child = require('child_process');
+require('child_process');
 require('assert');
 require('timers');
+var promises = require('node:fs/promises');
+var path = require('node:path');
+var node_child_process = require('node:child_process');
+var node_util = require('node:util');
 require('node:stream');
 
 function _interopNamespaceDefault(e) {
@@ -32,7 +36,6 @@ function _interopNamespaceDefault(e) {
 
 var os__namespace = /*#__PURE__*/_interopNamespaceDefault(os);
 var fs__namespace = /*#__PURE__*/_interopNamespaceDefault(fs);
-var path__namespace = /*#__PURE__*/_interopNamespaceDefault(path);
 
 // We use any as a valid input type
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -29038,6 +29041,31 @@ function endGroup() {
 }
 
 /**
+ * Asynchronous file existence check shared by the checkers.
+ * @file
+ */
+/**
+ * Tells whether a file or directory exists, treating every access error as absent.
+ * @param target - The path to check.
+ * @returns A promise of true when the path can be accessed, false otherwise.
+ * @example
+ * const present = await pathExists('/workspace/app/package.json');
+ */
+async function pathExists(target) {
+    try {
+        await promises.access(target);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+
+/**
+ * Shared options for the child processes the checkers run.
+ * @file
+ */
+/**
  * Output buffer ceiling for the child processes the checkers shell out to.
  *
  * Node's `execSync` defaults `maxBuffer` to 1 MiB. When a checker's stdout
@@ -29055,6 +29083,10 @@ function endGroup() {
 const MAX_OUTPUT_BUFFER = 64 * 1024 * 1024;
 
 /**
+ * Shared data types describing dependency findings and their locations.
+ * @file
+ */
+/**
  * The status of a dependency finding.
  */
 var DependencyStatus;
@@ -29063,7 +29095,7 @@ var DependencyStatus;
     DependencyStatus["UNDECLARED"] = "UNDECLARED";
 })(DependencyStatus || (DependencyStatus = {}));
 /**
- * The category of a dependency (e.g., runtime vs. development).
+ * The category of a dependency (e.g., runtime vs. Development).
  */
 var DependencyCategory;
 (function (DependencyCategory) {
@@ -29073,11 +29105,27 @@ var DependencyCategory;
 })(DependencyCategory || (DependencyCategory = {}));
 
 /**
+ * Error types raised by the checkers when an external tool cannot run.
+ * @file
+ */
+/**
  * A special error thrown when a tool is not installed or configured
  * correctly. It carries a link to a help document.
  */
 class ToolConfigurationError extends Error {
     helpUrl;
+    /**
+     * Creates an error that explains how to fix a tool's installation.
+     * @param message - A human-readable description of what went wrong.
+     * @param helpUrl - A link to the documentation for installing or
+     * configuring the tool.
+     * @param cause - The underlying error that triggered this one, if any.
+     * @example
+     * throw new ToolConfigurationError(
+     *   '`knip` is not installed.',
+     *   'https://knip.dev',
+     * );
+     */
     constructor(message, helpUrl, cause) {
         super(message, { cause });
         this.name = 'ToolConfigurationError';
@@ -29085,6 +29133,11 @@ class ToolConfigurationError extends Error {
     }
 }
 
+/**
+ * Dependency checker that wraps Knip to find unused and unlisted npm packages.
+ * @file
+ */
+const execAsync$3 = node_util.promisify(node_child_process.exec);
 const issueProcessors = [
     {
         key: 'dependencies',
@@ -29127,6 +29180,9 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 
 `;
+/**
+ * Checks Node.js projects for unused and undeclared dependencies using Knip.
+ */
 class KnipChecker {
     deducer;
     name = 'Knip';
@@ -29136,15 +29192,24 @@ class KnipChecker {
         this.deducer = deducer;
         this.runFn = runFn || this.defaultRunFn;
     }
-    run(projectPath, debug) {
+    /**
+     * Runs the checker against a project and maps its output to analysis results.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @param debug - Whether to log the raw tool output to the console.
+     * @returns A promise of the analysis results together with the troubleshooting help text.
+     * @throws ToolConfigurationError when the tool is missing or fails to run.
+     * @example
+     * const { checkResult } = await checker.run('/workspace/app', false);
+     */
+    async run(projectPath, debug) {
         try {
-            const stdout = this.runFn(projectPath);
+            const stdout = await this.runFn(projectPath);
             if (debug) {
                 console.debug(stdout);
             }
             return {
                 helpText: helpText$3,
-                checkResult: this.parseOutput(stdout),
+                checkResult: await this.parseOutput(stdout),
             };
         }
         catch (error) {
@@ -29160,14 +29225,28 @@ class KnipChecker {
             throw error;
         }
     }
-    defaultRunFn(projectPath) {
-        return child.execSync(`npx knip --no-exit-code --no-progress --reporter=json`, {
+    /**
+     * Executes Knip in the project directory and returns its JSON report.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of the raw JSON report written to standard output.
+     * @example
+     * const report = await this.defaultRunFn('/workspace/app');
+     */
+    async defaultRunFn(projectPath) {
+        const { stdout } = await execAsync$3(`npx knip --no-exit-code --no-progress --reporter=json`, {
             cwd: projectPath,
-            stdio: 'pipe',
-            encoding: 'utf-8',
+            encoding: 'utf8',
             maxBuffer: MAX_OUTPUT_BUFFER,
         });
+        return stdout;
     }
+    /**
+     * Converts Knip's JSON report into the standard analysis results.
+     * @param jsonOutput - The raw JSON report produced by Knip.
+     * @returns One analysis result per flagged dependency.
+     * @example
+     * const results = this.parseOutput('{"issues":[]}');
+     */
     parseOutput(jsonOutput) {
         const parsedData = JSON.parse(jsonOutput);
         const data = parsedData.issues || [];
@@ -29186,6 +29265,11 @@ class KnipChecker {
     }
 }
 
+/**
+ * Dependency checker that wraps composer-unused to find unused PHP packages.
+ * @file
+ */
+const execAsync$2 = node_util.promisify(node_child_process.exec);
 const helpText$2 = `
 <br />
 This report was generated using **[composer-unused](https://github.com/icanhazstring/composer-unused)**, a tool for identifying unused dependencies in PHP projects. This action acts as a wrapper around the tool to provide integrated checks within your GitHub workflow.
@@ -29205,6 +29289,9 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the results are **also incorrect when run locally**, the issue is likely with composer-unused itself. Please open an issue on the **[composer-unused repository](https://github.com/icanhazstring/composer-unused/issues)**.
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 `;
+/**
+ * Checks PHP projects for unused dependencies using composer-unused.
+ */
 class ComposerUnusedChecker {
     deducer;
     name = 'Composer Unused';
@@ -29214,15 +29301,24 @@ class ComposerUnusedChecker {
         this.deducer = deducer;
         this.runFn = runFn || this.defaultRunFn;
     }
-    run(projectPath, debug) {
+    /**
+     * Runs the checker against a project and maps its output to analysis results.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @param debug - Whether to log the raw tool output to the console.
+     * @returns A promise of the analysis results together with the troubleshooting help text.
+     * @throws ToolConfigurationError when the tool is missing or fails to run.
+     * @example
+     * const { checkResult } = await checker.run('/workspace/app', false);
+     */
+    async run(projectPath, debug) {
         try {
-            const stdout = this.runFn(projectPath);
+            const stdout = await this.runFn(projectPath);
             if (debug) {
                 console.debug(stdout);
             }
             return {
                 helpText: helpText$2,
-                checkResult: this.parseOutput(stdout, projectPath),
+                checkResult: await this.parseOutput(stdout, projectPath),
             };
         }
         catch (error) {
@@ -29238,33 +29334,64 @@ class ComposerUnusedChecker {
             throw error;
         }
     }
-    defaultRunFn(projectPath) {
+    /**
+     * Executes composer-unused in the project directory and returns its JSON report.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of the raw JSON report written to standard output.
+     * @example
+     * const report = await this.defaultRunFn('/workspace/app');
+     */
+    async defaultRunFn(projectPath) {
         const command = `./vendor/bin/composer-unused --no-progress --ignore-exit-code --output-format=json`;
-        return child.execSync(command, {
+        const { stdout, stderr } = await execAsync$2(command, {
             cwd: projectPath,
-            encoding: 'utf-8',
+            encoding: 'utf8',
             maxBuffer: MAX_OUTPUT_BUFFER,
         });
+        process.stderr.write(stderr);
+        return stdout;
     }
-    parseOutput(jsonOutput, projectPath) {
+    /**
+     * Converts composer-unused's JSON report into the standard analysis results.
+     * @param jsonOutput - The raw JSON report produced by composer-unused.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of one analysis result per unused package, excluding the PHP runtime.
+     * @example
+     * const results = await this.parseOutput('{"unused-packages":[]}', '/workspace/app');
+     */
+    async parseOutput(jsonOutput, projectPath) {
         const data = JSON.parse(jsonOutput);
         const manifestPath = `${projectPath}/${this.manifestFile}`;
-        return (data['unused-packages'] || [])
+        return Promise.all((data['unused-packages'] || [])
             .filter((pkg) => pkg !== 'php')
-            .map((pkg) => ({
+            .map(async (pkg) => ({
             status: DependencyStatus.UNUSED,
             category: DependencyCategory.UNKNOWN,
             dependency: { name: pkg },
             sourceFile: this.manifestFile,
-            position: this.deducer.findDependencyPosition(manifestPath, pkg) ?? undefined,
+            position: (await this.deducer.findDependencyPosition(manifestPath, pkg)) ??
+                undefined,
             extra: {
                 link: new URL(`https://packagist.org/packages/${pkg}`),
                 icon: new URL('https://raw.githubusercontent.com/mridang/action-dependency-insight/refs/heads/master/res/packagist.svg'),
             },
-        }));
+        })));
     }
 }
 
+/**
+ * Dependency checker that wraps FawltyDeps to find unused and undeclared Python packages.
+ * @file
+ */
+const execAsync$1 = node_util.promisify(node_child_process.exec);
+/**
+ * The lock files FawltyDeps can run against, in priority order, each paired
+ * with the command that runs the tool through that lock file's package manager.
+ */
+const LOCKFILE_COMMANDS = [
+    ['poetry.lock', 'poetry run fawltydeps --json'],
+    ['uv.lock', 'uv run fawltydeps --json'],
+];
 const helpText$1 = `
 <br />
 This report was generated using **[FawltyDeps](https://github.com/trailofbits/Fawltydeps)**, a tool for identifying unused dependencies in Python projects. This action acts as a wrapper around the tool to provide integrated checks within your GitHub workflow.
@@ -29288,6 +29415,9 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the results are **also incorrect when run locally**, the issue is likely with FawltyDeps itself. Please open an issue on the **[FawltyDeps repository](https://github.com/trailofbits/Fawltydeps/issues)**.
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 `;
+/**
+ * Checks Python projects for unused and undeclared dependencies using FawltyDeps.
+ */
 class FawltyDepsChecker {
     deducer;
     name = 'FawltyDeps';
@@ -29297,15 +29427,24 @@ class FawltyDepsChecker {
         this.deducer = deducer;
         this.runFn = runFn || this.defaultRunFn;
     }
-    run(projectPath, debug) {
+    /**
+     * Runs the checker against a project and maps its output to analysis results.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @param debug - Whether to log the raw tool output to the console.
+     * @returns A promise of the analysis results together with the troubleshooting help text.
+     * @throws ToolConfigurationError when the tool is missing or fails to run.
+     * @example
+     * const { checkResult } = await checker.run('/workspace/app', false);
+     */
+    async run(projectPath, debug) {
         try {
-            const stdout = this.runFn(projectPath);
+            const stdout = await this.runFn(projectPath);
             if (debug) {
                 console.debug(stdout);
             }
             return {
                 helpText: helpText$1,
-                checkResult: this.parseOutput(stdout, projectPath),
+                checkResult: await this.parseOutput(stdout, projectPath),
             };
         }
         catch (error) {
@@ -29321,48 +29460,61 @@ class FawltyDepsChecker {
             throw error;
         }
     }
-    defaultRunFn(projectPath) {
-        const poetryLockPath = path__namespace.join(projectPath, 'poetry.lock');
-        const uvLockPath = path__namespace.join(projectPath, 'uv.lock');
-        const command = fs.existsSync(poetryLockPath)
-            ? 'poetry run fawltydeps --json'
-            : fs.existsSync(uvLockPath)
-                ? 'uv run fawltydeps --json'
-                : null;
+    /**
+     * Runs FawltyDeps through the lock file's package manager and returns its JSON report.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of the raw JSON report, or an empty string when FawltyDeps reports findings.
+     * @throws Error when the project has neither a poetry.lock nor a uv.lock file.
+     * @example
+     * const report = await this.defaultRunFn('/workspace/app');
+     */
+    async defaultRunFn(projectPath) {
+        const present = await Promise.all(LOCKFILE_COMMANDS.map(([lockFile]) => pathExists(path.join(projectPath, lockFile))));
+        const command = LOCKFILE_COMMANDS.find((_, index) => present[index])?.[1] ?? null;
         if (!command) {
             throw new Error('No supported Python lockfile found. Add poetry.lock or uv.lock to run FawltyDeps.');
         }
         try {
-            return child.execSync(command, {
+            const { stdout, stderr } = await execAsync$1(command, {
                 cwd: projectPath,
-                encoding: 'utf-8',
+                encoding: 'utf8',
                 maxBuffer: MAX_OUTPUT_BUFFER,
             });
+            process.stderr.write(stderr);
+            return stdout;
         }
         catch (error) {
             // @ts-expect-error since these aren't errors
-            if (error instanceof Error && [1, 2, 3, 4, 5].includes(error.status)) {
+            if (error instanceof Error && [1, 2, 3, 4, 5].includes(error.code)) {
                 return '';
             }
             throw error;
         }
     }
-    parseOutput(jsonOutput, projectPath) {
+    /**
+     * Converts FawltyDeps' JSON report into the standard analysis results.
+     * @param jsonOutput - The raw JSON report produced by FawltyDeps.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of one analysis result per unused or undeclared package.
+     * @example
+     * const results = await this.parseOutput('{"unused_deps":[]}', '/workspace/app');
+     */
+    async parseOutput(jsonOutput, projectPath) {
         const data = JSON.parse(jsonOutput);
-        const unused = (data.unused_deps || []).map((finding) => {
+        const unused = await Promise.all((data.unused_deps || []).map(async (finding) => {
             const sourceFile = finding.references[0]?.path ?? this.manifestFile;
             return {
                 status: DependencyStatus.UNUSED,
                 category: DependencyCategory.RUNTIME,
                 dependency: { name: finding.name },
                 sourceFile,
-                position: this.deducer.findDependencyPosition(`${projectPath}/${sourceFile}`, finding.name) ?? undefined,
+                position: (await this.deducer.findDependencyPosition(`${projectPath}/${sourceFile}`, finding.name)) ?? undefined,
                 extra: {
                     link: new URL(`https://pypi.org/project/${finding.name}`),
                     icon: new URL('https://raw.githubusercontent.com/mridang/action-dependency-insight/refs/heads/master/res/npm.svg'),
                 },
             };
-        });
+        }));
         const undeclared = (data.undeclared_deps || []).map((finding) => ({
             status: DependencyStatus.UNDECLARED,
             category: DependencyCategory.UNKNOWN,
@@ -29378,18 +29530,33 @@ class FawltyDepsChecker {
 }
 
 /**
+ * Locates dependency declarations within a package.json file.
+ * @file
+ */
+/**
  * Finds dependency positions specifically within a package.json file.
  */
 class PackageJsonDeducer {
-    // noinspection DuplicatedCode
-    findDependencyPosition(manifestPath, dependencyName) {
+    /**
+     * Finds the line and column where a dependency is declared in a
+     * package.json file.
+     * @param manifestPath - The full path to the package.json file.
+     * @param dependencyName - The name of the dependency to find.
+     * @returns A promise of the 1-based position of the declaration, or null when the file
+     * cannot be read or the dependency is not declared.
+     * @example
+     * const position = await new PackageJsonDeducer().findDependencyPosition(
+     *   '/workspace/app/package.json',
+     *   'lodash',
+     * );
+     */
+    async findDependencyPosition(manifestPath, dependencyName) {
         try {
-            const content = fs__namespace.readFileSync(manifestPath, 'utf-8');
+            const content = await promises.readFile(manifestPath, 'utf8');
             const lines = content.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
+            for (const [i, line] of lines.entries()) {
                 // Look for keys like "package-name": "version"
-                const regex = new RegExp(`^\\s*"${dependencyName}"\\s*:`);
+                const regex = new RegExp(String.raw `^\s*"${dependencyName}"\s*:`);
                 if (regex.test(line)) {
                     return {
                         line: i + 1,
@@ -29405,19 +29572,34 @@ class PackageJsonDeducer {
     }
 }
 
+/**
+ * Locates dependency declarations within a composer.json file.
+ * @file
+ */
 /**
  * Finds dependency positions specifically within a composer.json file.
  */
 class ComposerJsonDeducer {
-    // noinspection DuplicatedCode
-    findDependencyPosition(manifestPath, dependencyName) {
+    /**
+     * Finds the line and column where a dependency is declared in a
+     * composer.json file.
+     * @param manifestPath - The full path to the composer.json file.
+     * @param dependencyName - The Packagist name of the dependency to find.
+     * @returns A promise of the 1-based position of the declaration, or null when the file
+     * cannot be read or the dependency is not declared.
+     * @example
+     * const position = await new ComposerJsonDeducer().findDependencyPosition(
+     *   '/workspace/app/composer.json',
+     *   'guzzlehttp/guzzle',
+     * );
+     */
+    async findDependencyPosition(manifestPath, dependencyName) {
         try {
-            const content = fs__namespace.readFileSync(manifestPath, 'utf-8');
+            const content = await promises.readFile(manifestPath, 'utf8');
             const lines = content.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
+            for (const [i, line] of lines.entries()) {
                 // Look for keys like "vendor/package-name": "version"
-                const regex = new RegExp(`^\\s*"${dependencyName}"\\s*:`);
+                const regex = new RegExp(String.raw `^\s*"${dependencyName}"\s*:`);
                 if (regex.test(line)) {
                     return {
                         line: i + 1,
@@ -29434,15 +29616,33 @@ class ComposerJsonDeducer {
 }
 
 /**
+ * Locates dependency declarations within a pyproject.toml file.
+ * @file
+ */
+/**
  * Finds dependency positions specifically within a pyproject.toml file.
  */
 class PyprojectTomlDeducer {
-    findDependencyPosition(manifestPath, dependencyName) {
+    /**
+     * Finds the line where a dependency is declared in a pyproject.toml file.
+     * The column is always reported as the first column because TOML keys are
+     * matched by their line prefix.
+     * @param manifestPath - The full path to the pyproject.toml file.
+     * @param dependencyName - The name of the dependency to find.
+     * @returns A promise of the 1-based position of the declaration, or null when the file
+     * cannot be read or the dependency is not declared.
+     * @example
+     * const position = await new PyprojectTomlDeducer().findDependencyPosition(
+     *   '/workspace/app/pyproject.toml',
+     *   'requests',
+     * );
+     */
+    async findDependencyPosition(manifestPath, dependencyName) {
         try {
-            const content = fs__namespace.readFileSync(manifestPath, 'utf-8');
+            const content = await promises.readFile(manifestPath, 'utf8');
             const lines = content.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
+            for (const [i, rawLine] of lines.entries()) {
+                const line = rawLine.trim();
                 if (line.startsWith(dependencyName) ||
                     line.startsWith(`"${dependencyName}"`)) {
                     return { line: i + 1, column: 1 };
@@ -51158,6 +51358,11 @@ function toUint8Array(str) {
     COMMENT_END: toUint8Array("-->"),
 });
 
+/**
+ * Dependency checker that runs the Maven dependency analyzer and reads its HTML report.
+ * @file
+ */
+const execAsync = node_util.promisify(node_child_process.exec);
 const helpText = `
 <br />
 This report was generated using the **[dependency-analyzer-maven-plugin](https://maven.apache.org/plugins/maven-dependency-plugin/analyze-mojo.html)**. This action acts as a wrapper around the tool to provide integrated checks within your GitHub workflow.
@@ -51179,6 +51384,10 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the results are **also incorrect when run locally**, the issue is likely with the Maven plugin itself. Please follow the instructions for reporting issues on the **[Maven project's issue management page](https://maven.apache.org/issue-management.html)**.
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 `;
+/**
+ * Checks Maven projects for unused and undeclared dependencies using the
+ * dependency analyzer plugin.
+ */
 class MavenChecker {
     deducer;
     name = 'Maven Dependency Analyzer';
@@ -51188,15 +51397,24 @@ class MavenChecker {
         this.deducer = deducer;
         this.runFn = runFn || this.defaultRunFn;
     }
-    run(projectPath, debug) {
+    /**
+     * Runs the checker against a project and maps its output to analysis results.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @param debug - Whether to log the raw tool output to the console.
+     * @returns A promise of the analysis results together with the troubleshooting help text.
+     * @throws ToolConfigurationError when the tool is missing or fails to run.
+     * @example
+     * const { checkResult } = await checker.run('/workspace/app', false);
+     */
+    async run(projectPath, debug) {
         try {
-            const htmlOutput = this.runFn(projectPath);
+            const htmlOutput = await this.runFn(projectPath);
             if (debug) {
                 console.debug(htmlOutput);
             }
             return {
                 helpText,
-                checkResult: this.parseOutput(htmlOutput, projectPath),
+                checkResult: await this.parseOutput(htmlOutput, projectPath),
             };
         }
         catch (error) {
@@ -51212,35 +51430,54 @@ class MavenChecker {
             throw error;
         }
     }
-    defaultRunFn(projectPath) {
+    /**
+     * Runs the Maven analysis goal and returns the generated HTML report.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of the contents of the dependency analysis HTML report.
+     * @example
+     * const html = this.defaultRunFn('/workspace/app');
+     */
+    async defaultRunFn(projectPath) {
         const command = 'mvn dependency:analyze-report';
-        child.execSync(command, {
+        await execAsync(command, {
             cwd: projectPath,
-            encoding: 'utf-8',
-            stdio: 'pipe',
+            encoding: 'utf8',
             maxBuffer: MAX_OUTPUT_BUFFER,
         });
-        const siteReportPath = path__namespace.join(projectPath, 'target', 'site', 'dependency-analysis.html');
-        const reportsReportPath = path__namespace.join(projectPath, 'target', 'reports', 'dependency-analysis.html');
-        const reportPath = fs.existsSync(reportsReportPath)
+        const siteReportPath = path.join(projectPath, 'target', 'site', 'dependency-analysis.html');
+        const reportsReportPath = path.join(projectPath, 'target', 'reports', 'dependency-analysis.html');
+        const reportPath = (await pathExists(reportsReportPath))
             ? reportsReportPath
             : siteReportPath;
-        return fs.readFileSync(reportPath, 'utf-8');
+        return promises.readFile(reportPath, 'utf8');
     }
-    parseSection($, sectionId, status, projectPath) {
-        const results = [];
+    /**
+     * Extracts the dependency rows from one section of the Maven report.
+     * @param $ - The loaded HTML document of the report.
+     * @param sectionId - The identifier of the report heading for the section.
+     * @param status - The dependency status to assign to every row found.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of the analysis results found in the section.
+     * @example
+     * const rows = await this.parseSection($, 'Unused_but_Declared_Dependencies', DependencyStatus.UNUSED, '/workspace/app');
+     */
+    async parseSection($, sectionId, status, projectPath) {
+        const rows = [];
         const table = $(`#${sectionId}`).parent().find('table');
         table.find('tr').each((_, row) => {
             const cells = $(row)
                 .find('td')
                 .map((__, cell) => $(cell).text())
                 .get();
-            if (cells.length < 7) {
-                return;
+            if (cells.length >= 7) {
+                rows.push(cells);
             }
-            const [groupId, artifactId, version, scope, , , optional] = cells;
+        });
+        return Promise.all(rows.map(async (cells) => {
+            const [groupId, artifactId, version, scope] = cells;
+            const optional = cells[6];
             const name = `${groupId}:${artifactId}`;
-            results.push({
+            return {
                 status,
                 category: scope === 'test'
                     ? DependencyCategory.DEVELOPMENT
@@ -51248,73 +51485,139 @@ class MavenChecker {
                 dependency: { name, version },
                 sourceFile: this.manifestFile,
                 optional: optional === 'true',
-                position: this.deducer.findDependencyPosition(`${projectPath}/${this.manifestFile}`, name) ?? undefined,
+                position: (await this.deducer.findDependencyPosition(`${projectPath}/${this.manifestFile}`, name)) ?? undefined,
                 extra: {
                     link: new URL(`https://search.maven.org/artifact/${groupId}/${artifactId}`),
                     icon: new URL('https://raw.githubusercontent.com/mridang/action-dependency-insight/main/res/maven.svg'),
                 },
-            });
-        });
-        return results;
+            };
+        }));
     }
-    parseOutput(htmlOutput, projectPath) {
+    /**
+     * Converts the Maven HTML report into the standard analysis results.
+     * @param htmlOutput - The HTML content of the dependency analysis report.
+     * @param projectPath - The absolute path to the project's root directory.
+     * @returns A promise of the unused and then the undeclared dependency results.
+     * @example
+     * const results = await this.parseOutput(html, '/workspace/app');
+     */
+    async parseOutput(htmlOutput, projectPath) {
         const $ = load(htmlOutput);
-        const unused = this.parseSection($, 'Unused_but_Declared_Dependencies', DependencyStatus.UNUSED, projectPath);
-        const undeclared = this.parseSection($, 'Used_but_Undeclared_Dependencies', DependencyStatus.UNDECLARED, projectPath);
+        const unused = await this.parseSection($, 'Unused_but_Declared_Dependencies', DependencyStatus.UNUSED, projectPath);
+        const undeclared = await this.parseSection($, 'Used_but_Undeclared_Dependencies', DependencyStatus.UNDECLARED, projectPath);
         return [...unused, ...undeclared];
     }
 }
 
 /**
+ * Locates dependency declarations within a pom.xml file.
+ * @file
+ */
+/**
+ * Collects the lines of a Maven `<dependency>` block, starting at the given
+ * line and stopping before the closing tag.
+ * @param lines - All lines of the pom.xml file.
+ * @param start - The index of the line that opens the block.
+ * @returns The lines making up the block, excluding the closing tag.
+ * @example
+ * const block = collectBlockLines(['<dependency>', '</dependency>'], 0);
+ */
+function collectBlockLines(lines, start) {
+    const blockLines = [];
+    for (let j = start; j < lines.length && !lines[j].includes('</dependency>'); j++) {
+        blockLines.push(lines[j]);
+    }
+    return blockLines;
+}
+/**
+ * Scans the lines of a pom.xml file for a `<dependency>` block whose group
+ * and artifact identifiers match the requested coordinates.
+ * @param lines - All lines of the pom.xml file.
+ * @param groupId - The Maven group identifier to match.
+ * @param artifactId - The Maven artifact identifier to match.
+ * @returns A promise of the 1-based position of the matching block, or null if none match.
+ * @example
+ * const position = findDeclaration(lines, 'org.example', 'demo');
+ */
+function findDeclaration(lines, groupId, artifactId) {
+    for (const [i, line] of lines.entries()) {
+        if (line.includes('<dependency>')) {
+            const blockLines = collectBlockLines(lines, i);
+            const hasGroupId = blockLines.some((blockLine) => blockLine.includes(`<groupId>${groupId}</groupId>`));
+            const hasArtifactId = blockLines.some((blockLine) => blockLine.includes(`<artifactId>${artifactId}</artifactId>`));
+            if (hasGroupId && hasArtifactId) {
+                return {
+                    line: i + 1,
+                    column: line.indexOf('<dependency>') + 1,
+                };
+            }
+        }
+    }
+    return null;
+}
+/**
  * Finds dependency positions specifically within a pom.xml file.
  */
 class PomXmlDeducer {
-    findDependencyPosition(manifestPath, dependencyName) {
+    /**
+     * Finds the line and column where a Maven dependency is declared.
+     * @param manifestPath - The full path to the pom.xml file.
+     * @param dependencyName - The coordinates as `groupId:artifactId`.
+     * @returns A promise of the 1-based position of the `<dependency>` tag, or null when the
+     * file cannot be read or the dependency is not declared.
+     * @example
+     * const position = await new PomXmlDeducer().findDependencyPosition(
+     *   '/workspace/app/pom.xml',
+     *   'org.apache.commons:commons-lang3',
+     * );
+     */
+    async findDependencyPosition(manifestPath, dependencyName) {
         try {
-            const content = fs__namespace.readFileSync(manifestPath, 'utf-8');
+            const content = await promises.readFile(manifestPath, 'utf8');
             const [groupId, artifactId] = dependencyName.split(':');
             const lines = content.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].includes('<dependency>')) {
-                    let blockLines = [];
-                    for (let j = i; j < lines.length && !lines[j].includes('</dependency>'); j++) {
-                        blockLines.push(lines[j]);
-                    }
-                    const hasGroupId = blockLines.some((line) => line.includes(`<groupId>${groupId}</groupId>`));
-                    const hasArtifactId = blockLines.some((line) => line.includes(`<artifactId>${artifactId}</artifactId>`));
-                    if (hasGroupId && hasArtifactId) {
-                        return {
-                            line: i + 1,
-                            column: lines[i].indexOf('<dependency>') + 1,
-                        };
-                    }
-                }
-            }
+            return findDeclaration(lines, groupId, artifactId);
         }
         catch {
             return null;
         }
-        return null;
     }
 }
 
+/**
+ * Registers every dependency checker and selects the ones that apply to a
+ * project based on the manifest files present in its root.
+ * @file
+ */
 const allCheckers = [
     new KnipChecker(new PackageJsonDeducer()),
     new ComposerUnusedChecker(new ComposerJsonDeducer()),
     new FawltyDepsChecker(new PyprojectTomlDeducer()),
     new MavenChecker(new PomXmlDeducer()),
 ];
-function getCheckersForProject(projectPath) {
-    return allCheckers.filter((checker) => fs__namespace.existsSync(path__namespace.join(projectPath, checker.manifestFile)));
+/**
+ * Returns the checkers whose manifest file exists in the given project.
+ * @param projectPath - The absolute path to the project's root directory.
+ * @returns A promise of the applicable checkers, in registration order.
+ * @example
+ * const checkers = await getCheckersForProject('/workspace/my-app');
+ */
+async function getCheckersForProject(projectPath) {
+    const present = await Promise.all(allCheckers.map((checker) => pathExists(path.join(projectPath, checker.manifestFile))));
+    return allCheckers.filter((_, index) => present[index]);
 }
 
+/**
+ * Renders analysis results as a colour-coded table for the console.
+ * @file
+ */
 const colors = {
-    reset: '\x1b[0m',
-    red: '\x1b[31m',
-    yellow: '\x1b[33m',
-    cyan: '\x1b[36m',
-    white: '\x1b[37m',
-    gray: '\x1b[90m',
+    reset: '\u001B[0m',
+    red: '\u001B[31m',
+    yellow: '\u001B[33m',
+    cyan: '\u001B[36m',
+    white: '\u001B[37m',
+    gray: '\u001B[90m',
 };
 /**
  * Formats analysis results into a color-coded, human-readable table
@@ -51322,6 +51625,14 @@ const colors = {
  * ideal for local development and debugging workflows.
  */
 class ConsoleFormatter {
+    /**
+     * Prints the results table and the troubleshooting help to the console.
+     * @param results - The analysis results to print.
+     * @param helpText - The troubleshooting guidance to print after the table.
+     * @returns A promise that resolves once the output has been written.
+     * @example
+     * await new ConsoleFormatter().format(results, helpText);
+     */
     async format(results, helpText) {
         if (results.length === 0) {
             return;
@@ -51332,15 +51643,25 @@ class ConsoleFormatter {
         console.log(outputBuilder.join('\n'));
         console.log(helpText);
     }
+    /**
+     * Builds the header, separator and body lines of the console table.
+     * @param results - The analysis results to display, with at least one entry.
+     * @returns The formatted table lines, ready to be joined with newlines.
+     * @example
+     * const lines = this.buildTable(results);
+     */
     buildTable(results) {
-        const tableData = results.map((r) => ({
-            Status: r.status,
-            Dependency: r.dependency.name,
-            Version: r.dependency.version || '(n/a)',
-            Category: r.category,
-            Optional: r.optional ? '✓' : '',
-            Location: `${r.sourceFile}${r.position ? `:${r.position.line}` : ''}`,
-        }));
+        const tableData = results.map((r) => {
+            const line = r.position ? `:${r.position.line}` : '';
+            return {
+                Status: r.status,
+                Dependency: r.dependency.name,
+                Version: r.dependency.version || '(n/a)',
+                Category: r.category,
+                Optional: r.optional ? '✓' : '',
+                Location: `${r.sourceFile}${line}`,
+            };
+        });
         const headers = Object.keys(tableData[0]);
         const columnWidths = headers.map((header) => Math.max(header.length, ...tableData.map((row) => (row[header] || '').length)));
         const headerRow = headers
@@ -56654,12 +56975,33 @@ Octokit.plugin(restEndpointMethods, paginateRest).defaults(defaults);
 
 const context = new Context();
 
+/**
+ * Writes the analysis results to GitHub annotations and the job summary.
+ * @file
+ */
 const ContextCtor$1 = context.constructor;
+/**
+ * Publishes analysis results as workflow annotations and a job summary table.
+ */
 class SummaryFormatter {
+    /**
+     * Creates the annotations and writes the job summary for the results.
+     * @param results - The analysis results to publish.
+     * @param helpText - The troubleshooting guidance to place in the summary.
+     * @returns A promise that resolves once the summary has been written.
+     * @example
+     * await new SummaryFormatter().format(results, helpText);
+     */
     async format(results, helpText) {
         this.createAnnotations(results);
         await this.generateSummary(results, helpText);
     }
+    /**
+     * Emits a workflow error annotation for each result that has a position.
+     * @param results - The analysis results to annotate.
+     * @example
+     * this.createAnnotations(results);
+     */
     createAnnotations(results) {
         results.forEach((result) => {
             if (result.position) {
@@ -56672,6 +57014,14 @@ class SummaryFormatter {
             }
         });
     }
+    /**
+     * Writes the results table and troubleshooting details to the job summary.
+     * @param results - The analysis results to tabulate.
+     * @param helpText - The troubleshooting guidance placed in a details block.
+     * @returns A promise that resolves once the summary has been written.
+     * @example
+     * await this.generateSummary(results, helpText);
+     */
     async generateSummary(results, helpText) {
         await summary
             .addHeading('Dependency Analysis Results')
@@ -56679,6 +57029,13 @@ class SummaryFormatter {
             .addDetails('Troubleshooting', helpText)
             .write();
     }
+    /**
+     * Builds the rows of the job summary table, including a header row.
+     * @param results - The analysis results to render as rows.
+     * @returns The table rows, starting with the header row.
+     * @example
+     * const rows = this.createTable(results);
+     */
     createTable(results) {
         const tableHeader = [
             { data: 'Status', header: true },
@@ -56715,9 +57072,12 @@ class SummaryFormatter {
     /**
      * Generates a permanent GitHub link to a specific line in a file for the
      * current workflow's commit SHA.
-     * @param filePath The path to the file from the repository root.
-     * @param line The 1-based line number to link to.
+     * @param filePath - The path to the file from the repository root.
+     * @param line - The 1-based line number to link to.
      * @returns A fully qualified URL to the file line.
+     * @throws Error when the workflow context lacks the server URL, repository owner, name or commit SHA.
+     * @example
+     * const url = SummaryFormatter.generateGitHubLink('package.json', 4);
      */
     static generateGitHubLink(filePath, line) {
         const { serverUrl, repo: { owner, repo: name }, sha, } = new ContextCtor$1();
@@ -56728,37 +57088,35 @@ class SummaryFormatter {
     }
 }
 
+/**
+ * The main logic of the GitHub Action. It detects which checkers apply to the
+ * project, runs them, and reports the findings to the job summary and console.
+ * @file
+ */
 const ContextCtor = context.constructor;
 /**
  * Retrieves the working directory from the action's 'working-directory' input.
- *
  * @returns The specified working directory or the current process's
  * working directory if the input is empty.
+ * @example
+ * const projectDir = getWorkingDirectory();
  */
 function getWorkingDirectory() {
     const dir = getInput('working-directory').trim();
-    if (dir) {
-        return dir;
-    }
-    else {
-        return process.cwd();
-    }
+    return dir || process.cwd();
 }
 /**
  * Sets the action's failure status with a given message.
  * In a JEST test environment, it throws an error instead of calling
  * `actionFailed`.
- *
  * @param message - The error message or Error object.
+ * @throws The message wrapped in an Error when running under Jest.
+ * @example
+ * setFailed('Could not detect a supported project type.');
  */
 function setFailed(message) {
     if (process.env.JEST_WORKER_ID) {
-        if (message instanceof Error) {
-            throw message;
-        }
-        else {
-            throw new Error(message);
-        }
+        throw message instanceof Error ? message : new Error(message);
     }
     else {
         setFailed$1(message);
@@ -56768,15 +57126,18 @@ const summaryFormatter = new SummaryFormatter();
 const consoleFormatter = new ConsoleFormatter();
 /**
  * The main entry point for the action.
- * @param {Context} [_ghCtx=new Context()] - The GitHub context object.
+ * @param [_ghCtx] - The GitHub context object, injectable for tests.
+ * @returns A promise that resolves once the checks have run and the outcome
+ * has been reported.
+ * @example
+ * await run();
  */
 // noinspection JSUnusedLocalSymbols
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 async function run(_ghCtx = new ContextCtor()) {
     try {
         const workingDirectory = getWorkingDirectory();
         info(`Analyzing project at: ${workingDirectory}`);
-        const selectedCheckers = getCheckersForProject(workingDirectory);
+        const selectedCheckers = await getCheckersForProject(workingDirectory);
         if (selectedCheckers.length === 0) {
             setFailed('Could not detect a supported project type.');
             return;
@@ -56784,13 +57145,14 @@ async function run(_ghCtx = new ContextCtor()) {
         else {
             let helpText = '';
             let allResults = [];
-            for (const checker of selectedCheckers) {
+            await selectedCheckers.reduce(async (previous, checker) => {
+                await previous;
                 startGroup(`Running ${checker.name}`);
-                const results = checker.run(workingDirectory, isDebug());
+                const results = await checker.run(workingDirectory, isDebug());
                 allResults = [...allResults, ...results.checkResult];
                 helpText = helpText + results.helpText;
                 endGroup();
-            }
+            }, Promise.resolve());
             if (allResults.length > 0) {
                 await summaryFormatter.format(allResults, helpText);
                 await consoleFormatter.format(allResults, helpText);
@@ -56801,12 +57163,12 @@ async function run(_ghCtx = new ContextCtor()) {
             }
         }
     }
-    catch (err) {
-        if (err instanceof Error) {
-            setFailed(err);
+    catch (error) {
+        if (error instanceof Error) {
+            setFailed(error);
         }
         else {
-            setFailed(err);
+            setFailed(error);
         }
     }
 }
@@ -56814,9 +57176,11 @@ async function run(_ghCtx = new ContextCtor()) {
 /**
  * The entrypoint for the action. This file simply imports and runs the action's
  * main logic.
+ * @file
  */
 /* istanbul ignore next */
 // noinspection JSUnusedGlobalSymbols
+// eslint-disable-next-line unicorn/prefer-top-level-await -- the CJS bundle cannot use top-level await
 var main = (async () => {
     await run();
 })();
