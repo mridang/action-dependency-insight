@@ -61,7 +61,7 @@ const consoleFormatter = new ConsoleFormatter();
  * await run();
  */
 // noinspection JSUnusedLocalSymbols
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars -- the injectable context parameter is part of the signature, and dropping it would leave @actions/github unused
+
 export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
   try {
     const workingDirectory = getWorkingDirectory();
