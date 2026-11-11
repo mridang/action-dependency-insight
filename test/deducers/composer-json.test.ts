@@ -36,7 +36,7 @@ describe('ComposerJsonDeducer', () => {
     await writeFile(filePath, content);
 
     const deducer = new ComposerJsonDeducer();
-    const position: Position | null = deducer.findDependencyPosition(
+    const position: Position | null = await deducer.findDependencyPosition(
       filePath,
       'league/flysystem',
     );
@@ -49,7 +49,7 @@ describe('ComposerJsonDeducer', () => {
     await writeFile(filePath, content);
 
     const deducer = new ComposerJsonDeducer();
-    const position = deducer.findDependencyPosition(
+    const position = await deducer.findDependencyPosition(
       filePath,
       'monolog/monolog',
     );

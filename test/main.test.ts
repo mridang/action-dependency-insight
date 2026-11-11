@@ -28,8 +28,7 @@ import jwt from 'jsonwebtoken';
 export async function bundleToPath(): Promise<string> {
   const testConfig = createRollupConfig({
     typescript: {
-      // eslint-disable-next-line sonarjs/no-undefined-assignment -- an explicit undefined stops the plugin from validating the default dist outDir against the temp bundle
-      outDir: undefined,
+      outDir: null,
       declaration: false,
       sourceMap: true,
     },

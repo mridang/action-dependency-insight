@@ -61,13 +61,13 @@ const consoleFormatter = new ConsoleFormatter();
  * await run();
  */
 // noinspection JSUnusedLocalSymbols
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars -- the context parameter is injectable for tests and otherwise unused
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars -- the injectable context parameter is part of the signature, and dropping it would leave @actions/github unused
 export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
   try {
     const workingDirectory = getWorkingDirectory();
     info(`Analyzing project at: ${workingDirectory}`);
 
-    const selectedCheckers = getCheckersForProject(workingDirectory);
+    const selectedCheckers = await getCheckersForProject(workingDirectory);
 
     if (selectedCheckers.length === 0) {
       setFailed('Could not detect a supported project type.');
@@ -76,13 +76,14 @@ export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
       let helpText: string = '';
       let allResults: AnalysisResult[] = [];
 
-      for (const checker of selectedCheckers) {
+      await selectedCheckers.reduce(async (previous, checker) => {
+        await previous;
         startGroup(`Running ${checker.name}`);
-        const results = checker.run(workingDirectory, isDebug());
+        const results = await checker.run(workingDirectory, isDebug());
         allResults = [...allResults, ...results.checkResult];
         helpText = helpText + results.helpText;
         endGroup();
-      }
+      }, Promise.resolve());
 
       if (allResults.length > 0) {
         await summaryFormatter.format(allResults, helpText);

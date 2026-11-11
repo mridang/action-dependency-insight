@@ -15,7 +15,7 @@ describe('ComposerUnusedChecker (Docker)', () => {
   const projectPath = path.resolve(process.cwd(), 'test/checkers/composer');
   const imageName = 'composer-checker-test';
 
-  const dockerRunFn = (): string => {
+  const dockerRunFn = async (): Promise<string> => {
     execSync(
       `docker build --tag=${imageName} --file=${projectPath}/Dockerfile ${projectPath}`,
       { stdio: 'inherit' },
@@ -24,8 +24,8 @@ describe('ComposerUnusedChecker (Docker)', () => {
     return execSync(`docker run --rm ${imageName}`, { encoding: 'utf8' });
   };
 
-  test('should throw an error if command is not found', () => {
-    const errorRunFn = () => {
+  test('should throw an error if command is not found', async () => {
+    const errorRunFn = async (): Promise<string> => {
       const err = new Error('Command failed');
       // @ts-expect-error since this is a test
       (err as never).stderr = 'command not found';
@@ -35,28 +35,34 @@ describe('ComposerUnusedChecker (Docker)', () => {
       new ComposerJsonDeducer(),
       errorRunFn,
     );
-    assert.throws(() => checker.run(projectPath, true), ToolConfigurationError);
+    await assert.rejects(
+      () => checker.run(projectPath, true),
+      ToolConfigurationError,
+    );
   });
 
-  test('should throw an error for any generic error', () => {
-    const errorRunFn = () => {
+  test('should throw an error for any generic error', async () => {
+    const errorRunFn = async (): Promise<string> => {
       throw new Error('Generic failure');
     };
     const checker = new ComposerUnusedChecker(
       new ComposerJsonDeducer(),
       errorRunFn,
     );
-    assert.throws(() => checker.run(projectPath, true), ToolConfigurationError);
+    await assert.rejects(
+      () => checker.run(projectPath, true),
+      ToolConfigurationError,
+    );
   });
 
-  test('should identify unused PHP dependencies', () => {
+  test('should identify unused PHP dependencies', async () => {
     const checker = new ComposerUnusedChecker(
       new ComposerJsonDeducer(),
       dockerRunFn,
     );
 
     const results: { checkResult: AnalysisResult[]; helpText: string } =
-      checker.run(projectPath, true);
+      await checker.run(projectPath, true);
 
     assert.deepEqual(results.checkResult, [
       {

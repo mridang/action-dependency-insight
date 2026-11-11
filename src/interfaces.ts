@@ -13,12 +13,12 @@ export interface IPositionDeducer {
    * Finds the line and column of a dependency in a given manifest file.
    * @param manifestPath - The full path to the manifest file.
    * @param dependencyName - The name of the dependency to find.
-   * @returns A Position object, or null if not found.
+   * @returns A promise of a Position object, or null if not found.
    */
   findDependencyPosition(
     manifestPath: string,
     dependencyName: string,
-  ): Position | null;
+  ): Promise<Position | null>;
 }
 
 /**
@@ -39,12 +39,12 @@ export interface IDependencyChecker {
    * Runs the dependency analysis for a given project path.
    * @param projectPath - The absolute path to the project's root directory.
    * @param debug - Whether the checker should log the raw tool output.
-   * @returns The analysis results together with the help text to show.
+   * @returns A promise of the analysis results together with the help text to show.
    */
   run(
     projectPath: string,
     debug: boolean,
-  ): { checkResult: AnalysisResult[]; helpText: string };
+  ): Promise<{ checkResult: AnalysisResult[]; helpText: string }>;
 }
 
 /**

@@ -2,9 +2,10 @@
  * Dependency checker that wraps FawltyDeps to find unused and undeclared Python packages.
  * @file
  */
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { existsSync } from 'node:fs';
+import { pathExists } from './path-exists.js';
 import path from 'node:path';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
@@ -14,7 +15,9 @@ import {
 } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 
-type RunFunction = (projectPath: string) => string;
+const execAsync = promisify(exec);
+
+type RunFunction = (projectPath: string) => Promise<string>;
 
 interface FawltyDepsFinding {
   name: string;
@@ -77,23 +80,23 @@ export class FawltyDepsChecker implements IDependencyChecker {
    * Runs the checker against a project and maps its output to analysis results.
    * @param projectPath - The absolute path to the project's root directory.
    * @param debug - Whether to log the raw tool output to the console.
-   * @returns The analysis results together with the troubleshooting help text.
+   * @returns A promise of the analysis results together with the troubleshooting help text.
    * @throws ToolConfigurationError when the tool is missing or fails to run.
    * @example
-   * const { checkResult } = checker.run('/workspace/app', false);
+   * const { checkResult } = await checker.run('/workspace/app', false);
    */
-  public run(
+  public async run(
     projectPath: string,
     debug: boolean,
-  ): { checkResult: AnalysisResult[]; helpText: string } {
+  ): Promise<{ checkResult: AnalysisResult[]; helpText: string }> {
     try {
-      const stdout = this.runFn(projectPath);
+      const stdout = await this.runFn(projectPath);
       if (debug) {
         console.debug(stdout);
       }
       return {
         helpText,
-        checkResult: this.parseOutput(stdout, projectPath),
+        checkResult: await this.parseOutput(stdout, projectPath),
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
@@ -120,17 +123,19 @@ export class FawltyDepsChecker implements IDependencyChecker {
   /**
    * Runs FawltyDeps through the lock file's package manager and returns its JSON report.
    * @param projectPath - The absolute path to the project's root directory.
-   * @returns The raw JSON report, or an empty string when FawltyDeps reports findings.
+   * @returns A promise of the raw JSON report, or an empty string when FawltyDeps reports findings.
    * @throws Error when the project has neither a poetry.lock nor a uv.lock file.
    * @example
-   * const report = this.defaultRunFn('/workspace/app');
+   * const report = await this.defaultRunFn('/workspace/app');
    */
-  private defaultRunFn(projectPath: string): string {
+  private async defaultRunFn(projectPath: string): Promise<string> {
+    const present = await Promise.all(
+      LOCKFILE_COMMANDS.map(([lockFile]) =>
+        pathExists(path.join(projectPath, lockFile)),
+      ),
+    );
     const command: string | null =
-      LOCKFILE_COMMANDS.find(([lockFile]) =>
-        // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so lock file detection stays synchronous
-        existsSync(path.join(projectPath, lockFile)),
-      )?.[1] ?? null;
+      LOCKFILE_COMMANDS.find((_, index) => present[index])?.[1] ?? null;
 
     if (!command) {
       throw new Error(
@@ -139,15 +144,16 @@ export class FawltyDepsChecker implements IDependencyChecker {
     }
 
     try {
-      // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the tool runs synchronously
-      return execSync(command, {
+      const { stdout, stderr } = await execAsync(command, {
         cwd: projectPath,
         encoding: 'utf8',
         maxBuffer: MAX_OUTPUT_BUFFER,
       });
+      process.stderr.write(stderr);
+      return stdout;
     } catch (error) {
       // @ts-expect-error since these aren't errors
-      if (error instanceof Error && [1, 2, 3, 4, 5].includes(error.status)) {
+      if (error instanceof Error && [1, 2, 3, 4, 5].includes(error.code)) {
         return '';
       }
       throw error;
@@ -158,18 +164,18 @@ export class FawltyDepsChecker implements IDependencyChecker {
    * Converts FawltyDeps' JSON report into the standard analysis results.
    * @param jsonOutput - The raw JSON report produced by FawltyDeps.
    * @param projectPath - The absolute path to the project's root directory.
-   * @returns One analysis result per unused or undeclared package.
+   * @returns A promise of one analysis result per unused or undeclared package.
    * @example
-   * const results = this.parseOutput('{"unused_deps":[]}', '/workspace/app');
+   * const results = await this.parseOutput('{"unused_deps":[]}', '/workspace/app');
    */
-  private parseOutput(
+  private async parseOutput(
     jsonOutput: string,
     projectPath: string,
-  ): AnalysisResult[] {
+  ): Promise<AnalysisResult[]> {
     const data: FawltyDepsOutput = JSON.parse(jsonOutput);
 
-    const unused: AnalysisResult[] = (data.unused_deps || []).map(
-      (finding): AnalysisResult => {
+    const unused: AnalysisResult[] = await Promise.all(
+      (data.unused_deps || []).map(async (finding): Promise<AnalysisResult> => {
         const sourceFile = finding.references[0]?.path ?? this.manifestFile;
         return {
           status: DependencyStatus.UNUSED,
@@ -177,10 +183,10 @@ export class FawltyDepsChecker implements IDependencyChecker {
           dependency: { name: finding.name },
           sourceFile,
           position:
-            this.deducer.findDependencyPosition(
+            (await this.deducer.findDependencyPosition(
               `${projectPath}/${sourceFile}`,
               finding.name,
-            ) ?? undefined,
+            )) ?? undefined,
           extra: {
             link: new URL(`https://pypi.org/project/${finding.name}`),
             icon: new URL(
@@ -188,7 +194,7 @@ export class FawltyDepsChecker implements IDependencyChecker {
             ),
           },
         };
-      },
+      }),
     );
 
     const undeclared: AnalysisResult[] = (data.undeclared_deps || []).map(

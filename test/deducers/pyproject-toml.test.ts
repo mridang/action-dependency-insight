@@ -32,7 +32,7 @@ describe('PyprojectTomlDeducer', () => {
     await writeFile(filePath, content);
 
     const deducer = new PyprojectTomlDeducer();
-    const position: Position | null = deducer.findDependencyPosition(
+    const position: Position | null = await deducer.findDependencyPosition(
       filePath,
       'requests',
     );
@@ -45,7 +45,10 @@ describe('PyprojectTomlDeducer', () => {
     await writeFile(filePath, content);
 
     const deducer = new PyprojectTomlDeducer();
-    const position = deducer.findDependencyPosition(filePath, 'my-package');
+    const position = await deducer.findDependencyPosition(
+      filePath,
+      'my-package',
+    );
     assert.deepStrictEqual(position, { line: 2, column: 1 });
   });
 });

@@ -39,7 +39,7 @@ describe('PackageJsonDeducer', () => {
     await writeFile(filePath, content);
 
     const deducer = new PackageJsonDeducer();
-    const position: Position | null = deducer.findDependencyPosition(
+    const position: Position | null = await deducer.findDependencyPosition(
       filePath,
       'jest',
     );
@@ -48,7 +48,7 @@ describe('PackageJsonDeducer', () => {
 
   test('should return null if file does not exist', async () => {
     const deducer = new PackageJsonDeducer();
-    const position = deducer.findDependencyPosition(
+    const position = await deducer.findDependencyPosition(
       '/non/existent/path/package.json',
       'jest',
     );

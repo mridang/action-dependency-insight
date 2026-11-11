@@ -1,5 +1,5 @@
 {
-  "type": "commonjs",
+  "type": "module",
   "name": "sample-node",
   "version": "1.0.0",
   "description": "Sample Node project used as a fixture for dependency checker tests.",

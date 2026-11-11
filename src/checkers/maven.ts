@@ -2,9 +2,11 @@
  * Dependency checker that runs the Maven dependency analyzer and reads its HTML report.
  * @file
  */
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { pathExists } from './path-exists.js';
 import path from 'node:path';
 import { load, type CheerioAPI } from 'cheerio';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
@@ -16,7 +18,9 @@ import {
 import { ToolConfigurationError } from '../errors.js';
 import { Element } from 'domhandler';
 
-type RunFunction = (projectPath: string) => string;
+const execAsync = promisify(exec);
+
+type RunFunction = (projectPath: string) => Promise<string>;
 
 const helpText = `
 <br />
@@ -60,23 +64,23 @@ export class MavenChecker implements IDependencyChecker {
    * Runs the checker against a project and maps its output to analysis results.
    * @param projectPath - The absolute path to the project's root directory.
    * @param debug - Whether to log the raw tool output to the console.
-   * @returns The analysis results together with the troubleshooting help text.
+   * @returns A promise of the analysis results together with the troubleshooting help text.
    * @throws ToolConfigurationError when the tool is missing or fails to run.
    * @example
-   * const { checkResult } = checker.run('/workspace/app', false);
+   * const { checkResult } = await checker.run('/workspace/app', false);
    */
-  public run(
+  public async run(
     projectPath: string,
     debug: boolean,
-  ): { checkResult: AnalysisResult[]; helpText: string } {
+  ): Promise<{ checkResult: AnalysisResult[]; helpText: string }> {
     try {
-      const htmlOutput = this.runFn(projectPath);
+      const htmlOutput = await this.runFn(projectPath);
       if (debug) {
         console.debug(htmlOutput);
       }
       return {
         helpText,
-        checkResult: this.parseOutput(htmlOutput, projectPath),
+        checkResult: await this.parseOutput(htmlOutput, projectPath),
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
@@ -103,17 +107,15 @@ export class MavenChecker implements IDependencyChecker {
   /**
    * Runs the Maven analysis goal and returns the generated HTML report.
    * @param projectPath - The absolute path to the project's root directory.
-   * @returns The contents of the dependency analysis HTML report.
+   * @returns A promise of the contents of the dependency analysis HTML report.
    * @example
    * const html = this.defaultRunFn('/workspace/app');
    */
-  private defaultRunFn(projectPath: string): string {
+  private async defaultRunFn(projectPath: string): Promise<string> {
     const command = 'mvn dependency:analyze-report';
-    // eslint-disable-next-line n/no-sync, sonarjs/no-os-command-from-path -- the checker contract is synchronous, and mvn is resolved from the workflow PATH by design
-    execSync(command, {
+    await execAsync(command, {
       cwd: projectPath,
       encoding: 'utf8',
-      stdio: 'pipe',
       maxBuffer: MAX_OUTPUT_BUFFER,
     });
     const siteReportPath = path.join(
@@ -128,12 +130,10 @@ export class MavenChecker implements IDependencyChecker {
       'reports',
       'dependency-analysis.html',
     );
-    // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the report read stays synchronous
-    const reportPath = existsSync(reportsReportPath)
+    const reportPath = (await pathExists(reportsReportPath))
       ? reportsReportPath
       : siteReportPath;
-    // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the report read stays synchronous
-    return readFileSync(reportPath, 'utf8');
+    return readFile(reportPath, 'utf8');
   }
 
   /**
@@ -142,17 +142,17 @@ export class MavenChecker implements IDependencyChecker {
    * @param sectionId - The identifier of the report heading for the section.
    * @param status - The dependency status to assign to every row found.
    * @param projectPath - The absolute path to the project's root directory.
-   * @returns The analysis results found in the section.
+   * @returns A promise of the analysis results found in the section.
    * @example
-   * const rows = this.parseSection($, 'Unused_but_Declared_Dependencies', DependencyStatus.UNUSED, '/workspace/app');
+   * const rows = await this.parseSection($, 'Unused_but_Declared_Dependencies', DependencyStatus.UNUSED, '/workspace/app');
    */
-  private parseSection(
+  private async parseSection(
     $: CheerioAPI,
     sectionId: string,
     status: DependencyStatus,
     projectPath: string,
-  ): AnalysisResult[] {
-    const results: AnalysisResult[] = [];
+  ): Promise<AnalysisResult[]> {
+    const rows: string[][] = [];
     const table = $(`#${sectionId}`).parent().find('table');
 
     table.find('tr').each((_: number, row: Element) => {
@@ -161,62 +161,64 @@ export class MavenChecker implements IDependencyChecker {
         .map((__: number, cell: Element) => $(cell).text())
         .get();
 
-      if (cells.length < 7) {
-        return;
+      if (cells.length >= 7) {
+        rows.push(cells);
       }
-
-      const [groupId, artifactId, version, scope] = cells;
-      const optional = cells[6];
-      const name = `${groupId}:${artifactId}`;
-
-      results.push({
-        status,
-        category:
-          scope === 'test'
-            ? DependencyCategory.DEVELOPMENT
-            : DependencyCategory.RUNTIME,
-        dependency: { name, version },
-        sourceFile: this.manifestFile,
-        optional: optional === 'true',
-        position:
-          this.deducer.findDependencyPosition(
-            `${projectPath}/${this.manifestFile}`,
-            name,
-          ) ?? undefined,
-        extra: {
-          link: new URL(
-            `https://search.maven.org/artifact/${groupId}/${artifactId}`,
-          ),
-          icon: new URL(
-            'https://raw.githubusercontent.com/mridang/action-dependency-insight/main/res/maven.svg',
-          ),
-        },
-      });
     });
 
-    return results;
+    return Promise.all(
+      rows.map(async (cells): Promise<AnalysisResult> => {
+        const [groupId, artifactId, version, scope] = cells;
+        const optional = cells[6];
+        const name = `${groupId}:${artifactId}`;
+
+        return {
+          status,
+          category:
+            scope === 'test'
+              ? DependencyCategory.DEVELOPMENT
+              : DependencyCategory.RUNTIME,
+          dependency: { name, version },
+          sourceFile: this.manifestFile,
+          optional: optional === 'true',
+          position:
+            (await this.deducer.findDependencyPosition(
+              `${projectPath}/${this.manifestFile}`,
+              name,
+            )) ?? undefined,
+          extra: {
+            link: new URL(
+              `https://search.maven.org/artifact/${groupId}/${artifactId}`,
+            ),
+            icon: new URL(
+              'https://raw.githubusercontent.com/mridang/action-dependency-insight/main/res/maven.svg',
+            ),
+          },
+        };
+      }),
+    );
   }
 
   /**
    * Converts the Maven HTML report into the standard analysis results.
    * @param htmlOutput - The HTML content of the dependency analysis report.
    * @param projectPath - The absolute path to the project's root directory.
-   * @returns The unused and then the undeclared dependency results.
+   * @returns A promise of the unused and then the undeclared dependency results.
    * @example
-   * const results = this.parseOutput(html, '/workspace/app');
+   * const results = await this.parseOutput(html, '/workspace/app');
    */
-  private parseOutput(
+  private async parseOutput(
     htmlOutput: string,
     projectPath: string,
-  ): AnalysisResult[] {
+  ): Promise<AnalysisResult[]> {
     const $ = load(htmlOutput);
-    const unused = this.parseSection(
+    const unused = await this.parseSection(
       $,
       'Unused_but_Declared_Dependencies',
       DependencyStatus.UNUSED,
       projectPath,
     );
-    const undeclared = this.parseSection(
+    const undeclared = await this.parseSection(
       $,
       'Used_but_Undeclared_Dependencies',
       DependencyStatus.UNDECLARED,

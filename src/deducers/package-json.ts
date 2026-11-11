@@ -2,7 +2,7 @@
  * Locates dependency declarations within a package.json file.
  * @file
  */
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { IPositionDeducer } from '../interfaces.js';
 import { Position } from '../types.js';
 
@@ -15,21 +15,20 @@ export class PackageJsonDeducer implements IPositionDeducer {
    * package.json file.
    * @param manifestPath - The full path to the package.json file.
    * @param dependencyName - The name of the dependency to find.
-   * @returns The 1-based position of the declaration, or null when the file
+   * @returns A promise of the 1-based position of the declaration, or null when the file
    * cannot be read or the dependency is not declared.
    * @example
-   * const position = new PackageJsonDeducer().findDependencyPosition(
+   * const position = await new PackageJsonDeducer().findDependencyPosition(
    *   '/workspace/app/package.json',
    *   'lodash',
    * );
    */
-  public findDependencyPosition(
+  public async findDependencyPosition(
     manifestPath: string,
     dependencyName: string,
-  ): Position | null {
+  ): Promise<Position | null> {
     try {
-      // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the manifest read stays synchronous
-      const content: string = readFileSync(manifestPath, 'utf8');
+      const content: string = await readFile(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
       for (const [i, line] of lines.entries()) {
