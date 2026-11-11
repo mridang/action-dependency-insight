@@ -17,7 +17,7 @@ const NODE_BUILTINS = builtinModules.reduce(
  * Builds the Rollup options for the action, with optional overrides for the
  * TypeScript plugin.
  * @param {object} [configOverrides] - Settings merged into the TypeScript plugin options.
- * @returns {object} The Rollup input, output, plugin and external options.
+ * @returns {import('rollup').RollupOptions & { output: import('rollup').OutputOptions }} The Rollup input, output, plugin and external options.
  * @example
  * export default createRollupConfig({ typescript: { sourceMap: true } });
  */
