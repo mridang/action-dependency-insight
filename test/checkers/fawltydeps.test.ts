@@ -16,12 +16,11 @@ describe('FawltyDepsChecker (Docker)', () => {
   const imageName = 'python-checker-test';
 
   const dockerRunFn = (): string => {
-    // eslint-disable-next-line n/no-sync -- injected RunFunction in src/checkers must return a string synchronously because Checker.run() is synchronous and production source is out of scope
     execSync(
       `docker build --tag=${imageName} --file=${projectPath}/Dockerfile ${projectPath}`,
       { stdio: 'inherit' },
     );
-    // eslint-disable-next-line n/no-sync -- injected RunFunction in src/checkers must return a string synchronously because Checker.run() is synchronous and production source is out of scope
+
     return execSync(`docker run --rm ${imageName}`, { encoding: 'utf8' });
   };
 
