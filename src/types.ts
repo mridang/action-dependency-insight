@@ -1,7 +1,12 @@
 /**
+ * Shared data types describing dependency findings and their locations.
+ * @file
+ */
+
+/**
  * Represents a location (line, column) within a source file.
- * @property {number} line - The 1-based line number.
- * @property {number} column - The 1-based column number.
+ * @property line - The 1-based line number.
+ * @property column - The 1-based column number.
  */
 export interface Position {
   line: number;
@@ -17,7 +22,7 @@ export enum DependencyStatus {
 }
 
 /**
- * The category of a dependency (e.g., runtime vs. development).
+ * The category of a dependency (e.g., runtime vs. Development).
  */
 export enum DependencyCategory {
   RUNTIME = 'runtime',
@@ -27,8 +32,8 @@ export enum DependencyCategory {
 
 /**
  * Represents a single dependency finding.
- * @property {string} name - The name of the package.
- * @property {string} [version] - The optional version of the package.
+ * @property name - The name of the package.
+ * @property [version] - The optional version of the package.
  */
 interface Dependency {
   name: string;

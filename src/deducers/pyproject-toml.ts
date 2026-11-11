@@ -1,4 +1,8 @@
-import * as fs from 'fs';
+/**
+ * Locates dependency declarations within a pyproject.toml file.
+ * @file
+ */
+import { readFile } from 'node:fs/promises';
 import { IPositionDeducer } from '../interfaces.js';
 import { Position } from '../types.js';
 
@@ -6,16 +10,30 @@ import { Position } from '../types.js';
  * Finds dependency positions specifically within a pyproject.toml file.
  */
 export class PyprojectTomlDeducer implements IPositionDeducer {
-  public findDependencyPosition(
+  /**
+   * Finds the line where a dependency is declared in a pyproject.toml file.
+   * The column is always reported as the first column because TOML keys are
+   * matched by their line prefix.
+   * @param manifestPath - The full path to the pyproject.toml file.
+   * @param dependencyName - The name of the dependency to find.
+   * @returns A promise of the 1-based position of the declaration, or null when the file
+   * cannot be read or the dependency is not declared.
+   * @example
+   * const position = await new PyprojectTomlDeducer().findDependencyPosition(
+   *   '/workspace/app/pyproject.toml',
+   *   'requests',
+   * );
+   */
+  public async findDependencyPosition(
     manifestPath: string,
     dependencyName: string,
-  ): Position | null {
+  ): Promise<Position | null> {
     try {
-      const content: string = fs.readFileSync(manifestPath, 'utf-8');
+      const content: string = await readFile(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        const line: string = lines[i].trim();
+      for (const [i, rawLine] of lines.entries()) {
+        const line: string = rawLine.trim();
         if (
           line.startsWith(dependencyName) ||
           line.startsWith(`"${dependencyName}"`)

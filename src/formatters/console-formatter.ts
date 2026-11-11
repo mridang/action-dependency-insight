@@ -1,13 +1,17 @@
+/**
+ * Renders analysis results as a colour-coded table for the console.
+ * @file
+ */
 import { AnalysisResult, DependencyStatus } from '../types.js';
 import { IFormatter } from '../interfaces.js';
 
 const colors = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  yellow: '\x1b[33m',
-  cyan: '\x1b[36m',
-  white: '\x1b[37m',
-  gray: '\x1b[90m',
+  reset: '\u001B[0m',
+  red: '\u001B[31m',
+  yellow: '\u001B[33m',
+  cyan: '\u001B[36m',
+  white: '\u001B[37m',
+  gray: '\u001B[90m',
 };
 
 /**
@@ -16,6 +20,14 @@ const colors = {
  * ideal for local development and debugging workflows.
  */
 export class ConsoleFormatter implements IFormatter {
+  /**
+   * Prints the results table and the troubleshooting help to the console.
+   * @param results - The analysis results to print.
+   * @param helpText - The troubleshooting guidance to print after the table.
+   * @returns A promise that resolves once the output has been written.
+   * @example
+   * await new ConsoleFormatter().format(results, helpText);
+   */
   public async format(
     results: AnalysisResult[],
     helpText: string,
@@ -33,15 +45,25 @@ export class ConsoleFormatter implements IFormatter {
     console.log(helpText);
   }
 
+  /**
+   * Builds the header, separator and body lines of the console table.
+   * @param results - The analysis results to display, with at least one entry.
+   * @returns The formatted table lines, ready to be joined with newlines.
+   * @example
+   * const lines = this.buildTable(results);
+   */
   private buildTable(results: AnalysisResult[]): string[] {
-    const tableData = results.map((r) => ({
-      Status: r.status,
-      Dependency: r.dependency.name,
-      Version: r.dependency.version || '(n/a)',
-      Category: r.category,
-      Optional: r.optional ? '✓' : '',
-      Location: `${r.sourceFile}${r.position ? `:${r.position.line}` : ''}`,
-    }));
+    const tableData = results.map((r) => {
+      const line = r.position ? `:${r.position.line}` : '';
+      return {
+        Status: r.status,
+        Dependency: r.dependency.name,
+        Version: r.dependency.version || '(n/a)',
+        Category: r.category,
+        Optional: r.optional ? '✓' : '',
+        Location: `${r.sourceFile}${line}`,
+      };
+    });
 
     const headers = Object.keys(tableData[0]);
     const columnWidths = headers.map((header) =>

@@ -1,16 +1,27 @@
+/**
+ * Rollup configuration that bundles the action into a single CommonJS file.
+ * @file
+ */
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
-import * as nodules from 'node:module';
+import { builtinModules } from 'node:module';
 import json from '@rollup/plugin-json';
 
-const NODE_BUILTINS = nodules.builtinModules.reduce(
-  (acc, name) => acc.concat([name, `node:${name}`]),
+const NODE_BUILTINS = builtinModules.reduce(
+  (acc, name) => [...acc, name, `node:${name}`],
   [],
 );
 
-// noinspection JSUnusedGlobalSymbols,SpellCheckingInspection
-export default (configOverrides = {}) => ({
+/**
+ * Builds the Rollup options for the action, with optional overrides for the
+ * TypeScript plugin.
+ * @param {object} [configOverrides] - Settings merged into the TypeScript plugin options.
+ * @returns {object} The Rollup input, output, plugin and external options.
+ * @example
+ * export default createRollupConfig({ typescript: { sourceMap: true } });
+ */
+const createRollupConfig = (configOverrides = {}) => ({
   input: 'src/main.ts',
   output: {
     file: 'dist/main.cjs',
@@ -32,10 +43,12 @@ export default (configOverrides = {}) => ({
   onwarn(warning, warn) {
     switch (warning.code) {
       case 'CIRCULAR_DEPENDENCY':
-      case 'THIS_IS_UNDEFINED':
+      case 'THIS_IS_UNDEFINED': {
         return;
-      default:
+      }
+      default: {
         warn(warning);
+      }
     }
   },
   plugins: [
@@ -66,3 +79,5 @@ export default (configOverrides = {}) => ({
   ],
   external: NODE_BUILTINS,
 });
+
+export default createRollupConfig;

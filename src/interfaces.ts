@@ -1,3 +1,7 @@
+/**
+ * Contracts implemented by the checkers, position deducers and formatters.
+ * @file
+ */
 import { AnalysisResult, Position } from './types.js';
 
 /**
@@ -7,14 +11,14 @@ import { AnalysisResult, Position } from './types.js';
 export interface IPositionDeducer {
   /**
    * Finds the line and column of a dependency in a given manifest file.
-   * @param manifestPath The full path to the manifest file.
-   * @param dependencyName The name of the dependency to find.
-   * @returns A Position object, or null if not found.
+   * @param manifestPath - The full path to the manifest file.
+   * @param dependencyName - The name of the dependency to find.
+   * @returns A promise of a Position object, or null if not found.
    */
   findDependencyPosition(
     manifestPath: string,
     dependencyName: string,
-  ): Position | null;
+  ): Promise<Position | null>;
 }
 
 /**
@@ -33,14 +37,14 @@ export interface IDependencyChecker {
 
   /**
    * Runs the dependency analysis for a given project path.
-   * @param projectPath The absolute path to the project's root directory.
-   * @param debug
-   * @returns An array of analysis results.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @param debug - Whether the checker should log the raw tool output.
+   * @returns A promise of the analysis results together with the help text to show.
    */
   run(
     projectPath: string,
     debug: boolean,
-  ): { checkResult: AnalysisResult[]; helpText: string };
+  ): Promise<{ checkResult: AnalysisResult[]; helpText: string }>;
 }
 
 /**
@@ -49,8 +53,8 @@ export interface IDependencyChecker {
 export interface IFormatter {
   /**
    * Formats and outputs the analysis results.
-   * @param results The array of analysis results to format.
-   * @param helpText
+   * @param results - The array of analysis results to format.
+   * @param helpText - The troubleshooting guidance to include in the output.
    */
   format(results: AnalysisResult[], helpText: string): Promise<void>;
 }

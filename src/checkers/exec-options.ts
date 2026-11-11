@@ -1,4 +1,9 @@
 /**
+ * Shared options for the child processes the checkers run.
+ * @file
+ */
+
+/**
  * Output buffer ceiling for the child processes the checkers shell out to.
  *
  * Node's `execSync` defaults `maxBuffer` to 1 MiB. When a checker's stdout

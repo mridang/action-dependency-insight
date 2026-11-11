@@ -1,4 +1,9 @@
-import { execSync } from 'child_process';
+/**
+ * Dependency checker that wraps composer-unused to find unused PHP packages.
+ * @file
+ */
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
@@ -8,7 +13,9 @@ import {
 } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 
-type RunFunction = (projectPath: string) => string;
+const execAsync = promisify(exec);
+
+type RunFunction = (projectPath: string) => Promise<string>;
 
 interface ComposerUnusedOutput {
   'unused-packages'?: string[];
@@ -34,6 +41,9 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 `;
 
+/**
+ * Checks PHP projects for unused dependencies using composer-unused.
+ */
 export class ComposerUnusedChecker implements IDependencyChecker {
   public readonly name: string = 'Composer Unused';
   public readonly manifestFile: string = 'composer.json';
@@ -46,18 +56,27 @@ export class ComposerUnusedChecker implements IDependencyChecker {
     this.runFn = runFn || this.defaultRunFn;
   }
 
-  public run(
+  /**
+   * Runs the checker against a project and maps its output to analysis results.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @param debug - Whether to log the raw tool output to the console.
+   * @returns A promise of the analysis results together with the troubleshooting help text.
+   * @throws ToolConfigurationError when the tool is missing or fails to run.
+   * @example
+   * const { checkResult } = await checker.run('/workspace/app', false);
+   */
+  public async run(
     projectPath: string,
     debug: boolean,
-  ): { checkResult: AnalysisResult[]; helpText: string } {
+  ): Promise<{ checkResult: AnalysisResult[]; helpText: string }> {
     try {
-      const stdout = this.runFn(projectPath);
+      const stdout = await this.runFn(projectPath);
       if (debug) {
         console.debug(stdout);
       }
       return {
         helpText,
-        checkResult: this.parseOutput(stdout, projectPath),
+        checkResult: await this.parseOutput(stdout, projectPath),
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
@@ -81,39 +100,57 @@ export class ComposerUnusedChecker implements IDependencyChecker {
     }
   }
 
-  private defaultRunFn(projectPath: string): string {
+  /**
+   * Executes composer-unused in the project directory and returns its JSON report.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns A promise of the raw JSON report written to standard output.
+   * @example
+   * const report = await this.defaultRunFn('/workspace/app');
+   */
+  private async defaultRunFn(projectPath: string): Promise<string> {
     const command: string = `./vendor/bin/composer-unused --no-progress --ignore-exit-code --output-format=json`;
-    return execSync(command, {
+    const { stdout, stderr } = await execAsync(command, {
       cwd: projectPath,
-      encoding: 'utf-8',
+      encoding: 'utf8',
       maxBuffer: MAX_OUTPUT_BUFFER,
     });
+    process.stderr.write(stderr);
+    return stdout;
   }
 
-  private parseOutput(
+  /**
+   * Converts composer-unused's JSON report into the standard analysis results.
+   * @param jsonOutput - The raw JSON report produced by composer-unused.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns A promise of one analysis result per unused package, excluding the PHP runtime.
+   * @example
+   * const results = await this.parseOutput('{"unused-packages":[]}', '/workspace/app');
+   */
+  private async parseOutput(
     jsonOutput: string,
     projectPath: string,
-  ): AnalysisResult[] {
+  ): Promise<AnalysisResult[]> {
     const data: ComposerUnusedOutput = JSON.parse(jsonOutput);
     const manifestPath: string = `${projectPath}/${this.manifestFile}`;
 
-    return (data['unused-packages'] || [])
-      .filter((pkg) => pkg !== 'php')
-      .map(
-        (pkg): AnalysisResult => ({
+    return Promise.all(
+      (data['unused-packages'] || [])
+        .filter((pkg) => pkg !== 'php')
+        .map(async (pkg): Promise<AnalysisResult> => ({
           status: DependencyStatus.UNUSED,
           category: DependencyCategory.UNKNOWN,
           dependency: { name: pkg },
           sourceFile: this.manifestFile,
           position:
-            this.deducer.findDependencyPosition(manifestPath, pkg) ?? undefined,
+            (await this.deducer.findDependencyPosition(manifestPath, pkg)) ??
+            undefined,
           extra: {
             link: new URL(`https://packagist.org/packages/${pkg}`),
             icon: new URL(
               'https://raw.githubusercontent.com/mridang/action-dependency-insight/refs/heads/master/res/packagist.svg',
             ),
           },
-        }),
-      );
+        })),
+    );
   }
 }

@@ -1,6 +1,11 @@
+/**
+ * Integration tests that run the action's entry point against a temporary
+ * project and check whether it fails as expected.
+ * @file
+ */
 import { describe, expect, test } from '@jest/globals';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 // noinspection ES6PreferShortImport
 import { run } from '../src/index.js';
 import { withTempDir } from './helpers/with-temp-dir.js';
@@ -12,34 +17,35 @@ import { tmpdir } from 'node:os';
  * controlled environment. It simulates the GitHub Actions runtime by
  * preparing environment variables and mocking necessary features like
  * Job Summaries.
- *
- * @param inputs A record of key-value pairs representing the action's
+ * @param inputs - A record of key-value pairs representing the action's
  * inputs, equivalent to the `with` block in a workflow YAML file.
- * @param extraEnv A record of additional environment variables to set
+ * @param extraEnv - A record of additional environment variables to set
  * during the action's execution, used to simulate workflow context
  * like `GITHUB_REF` or `GITHUB_EVENT_NAME`.
- * @param eventPayload
+ * @param eventPayload - The GitHub event payload written to the event file.
  * @returns A promise that resolves with the action's result or void.
+ * @example
+ * await runAction({ 'working-directory': tmp }, {}, {});
  */
 async function runAction(
   inputs: Record<string, string>,
   extraEnv: Record<string, string | undefined> = {},
   eventPayload: unknown,
 ): Promise<string | void> {
-  const summaryDir = mkdtempSync(join(tmpdir(), 'test-'));
-  const summaryPath = join(summaryDir, 'summary.md');
-  writeFileSync(summaryPath, '');
+  const summaryDir = await mkdtemp(path.join(tmpdir(), 'test-'));
+  const summaryPath = path.join(summaryDir, 'summary.md');
+  await writeFile(summaryPath, '');
 
-  const eventDir = mkdtempSync(join(tmpdir(), 'test-'));
-  const eventPath = join(eventDir, 'event.json');
-  writeFileSync(eventPath, JSON.stringify(eventPayload));
+  const eventDir = await mkdtemp(path.join(tmpdir(), 'test-'));
+  const eventPath = path.join(eventDir, 'event.json');
+  await writeFile(eventPath, JSON.stringify(eventPayload));
 
   const wrapped = withEnvVars(
     {
       ...extraEnv,
       ...Object.fromEntries(
         Object.entries(inputs).map(([key, value]) => [
-          `INPUT_${key.replace(/ /g, '_').toUpperCase()}`,
+          `INPUT_${key.replaceAll(' ', '_').toUpperCase()}`,
           value,
         ]),
       ),
@@ -83,8 +89,8 @@ describe('Action Integration Tests', () => {
 
   test.each(testMatrix)('$description', (params) => {
     return withTempDir(async ({ tmp }) => {
-      writeFileSync(
-        join(tmp, 'package.json'),
+      await writeFile(
+        path.join(tmp, 'package.json'),
         JSON.stringify(params.packageJson),
       );
 
@@ -105,11 +111,9 @@ describe('Action Integration Tests', () => {
           params.event.payload,
         );
 
-      if (params.expectToThrow) {
-        await expect(action()).rejects.toThrow(params.expectedErrorMessage);
-      } else {
-        await expect(action()).resolves.not.toThrow();
-      }
+      await (params.expectToThrow
+        ? expect(action()).rejects.toThrow(params.expectedErrorMessage)
+        : expect(action()).resolves.not.toThrow());
     })();
   });
 });
