@@ -10,10 +10,10 @@ import path from 'node:path';
 import { withTempDir } from './helpers/with-temp-dir.js';
 import { withEnvVars } from './helpers/with-env-vars.js';
 import { tmpdir } from 'node:os';
-import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import vm, { constants as VM } from 'node:vm';
 import { rollup } from 'rollup';
+import createRollupConfig from '../rollup.config.mjs';
 import jwt from 'jsonwebtoken';
 
 /**
@@ -26,11 +26,6 @@ import jwt from 'jsonwebtoken';
  * const bundlePath = await bundleToPath();
  */
 export async function bundleToPath(): Promise<string> {
-  // eslint-disable-next-line no-unsanitized/method -- the path is the repository's own rollup.config.mjs
-  const { default: createRollupConfig } = await import(
-    pathToFileURL(path.resolve('rollup.config.mjs')).href
-  );
-
   const testConfig = createRollupConfig({
     typescript: {
       // eslint-disable-next-line sonarjs/no-undefined-assignment -- an explicit undefined stops the plugin from validating the default dist outDir against the temp bundle
