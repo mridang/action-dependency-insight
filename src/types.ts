@@ -17,7 +17,7 @@ export enum DependencyStatus {
 }
 
 /**
- * The category of a dependency (e.g., runtime vs. development).
+ * The category of a dependency (e.g., runtime vs. Development).
  */
 export enum DependencyCategory {
   RUNTIME = 'runtime',

@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { IPositionDeducer } from '../interfaces.js';
 import { Position } from '../types.js';
 
@@ -12,13 +12,15 @@ export class PackageJsonDeducer implements IPositionDeducer {
     dependencyName: string,
   ): Position | null {
     try {
-      const content: string = fs.readFileSync(manifestPath, 'utf-8');
+      const content: string = fs.readFileSync(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
       for (let i = 0; i < lines.length; i++) {
         const line: string = lines[i];
         // Look for keys like "package-name": "version"
-        const regex: RegExp = new RegExp(`^\\s*"${dependencyName}"\\s*:`);
+        const regex: RegExp = new RegExp(
+          String.raw`^\s*"${dependencyName}"\s*:`,
+        );
         if (regex.test(line)) {
           return {
             line: i + 1,

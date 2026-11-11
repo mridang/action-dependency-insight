@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { IPositionDeducer } from '../interfaces.js';
 import { Position } from '../types.js';
 
@@ -11,11 +11,11 @@ export class PyprojectTomlDeducer implements IPositionDeducer {
     dependencyName: string,
   ): Position | null {
     try {
-      const content: string = fs.readFileSync(manifestPath, 'utf-8');
+      const content: string = fs.readFileSync(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
-      for (let i = 0; i < lines.length; i++) {
-        const line: string = lines[i].trim();
+      for (const [i, line_] of lines.entries()) {
+        const line: string = line_.trim();
         if (
           line.startsWith(dependencyName) ||
           line.startsWith(`"${dependencyName}"`)

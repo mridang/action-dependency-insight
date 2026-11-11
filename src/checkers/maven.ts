@@ -1,7 +1,7 @@
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { existsSync, readFileSync } from 'fs';
-import * as path from 'path';
+import { existsSync, readFileSync } from 'node:fs';
+import * as path from 'node:path';
 import * as cheerio from 'cheerio';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {

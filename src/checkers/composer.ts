@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
@@ -99,21 +99,19 @@ export class ComposerUnusedChecker implements IDependencyChecker {
 
     return (data['unused-packages'] || [])
       .filter((pkg) => pkg !== 'php')
-      .map(
-        (pkg): AnalysisResult => ({
-          status: DependencyStatus.UNUSED,
-          category: DependencyCategory.UNKNOWN,
-          dependency: { name: pkg },
-          sourceFile: this.manifestFile,
-          position:
-            this.deducer.findDependencyPosition(manifestPath, pkg) ?? undefined,
-          extra: {
-            link: new URL(`https://packagist.org/packages/${pkg}`),
-            icon: new URL(
-              'https://raw.githubusercontent.com/mridang/action-dependency-insight/refs/heads/master/res/packagist.svg',
-            ),
-          },
-        }),
-      );
+      .map((pkg): AnalysisResult => ({
+        status: DependencyStatus.UNUSED,
+        category: DependencyCategory.UNKNOWN,
+        dependency: { name: pkg },
+        sourceFile: this.manifestFile,
+        position:
+          this.deducer.findDependencyPosition(manifestPath, pkg) ?? undefined,
+        extra: {
+          link: new URL(`https://packagist.org/packages/${pkg}`),
+          icon: new URL(
+            'https://raw.githubusercontent.com/mridang/action-dependency-insight/refs/heads/master/res/packagist.svg',
+          ),
+        },
+      }));
   }
 }

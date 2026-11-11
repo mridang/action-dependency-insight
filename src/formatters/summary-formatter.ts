@@ -81,8 +81,8 @@ export class SummaryFormatter implements IFormatter {
   /**
    * Generates a permanent GitHub link to a specific line in a file for the
    * current workflow's commit SHA.
-   * @param filePath The path to the file from the repository root.
-   * @param line The 1-based line number to link to.
+   * @param filePath - The path to the file from the repository root.
+   * @param line - The 1-based line number to link to.
    * @returns A fully qualified URL to the file line.
    */
   private static generateGitHubLink(filePath: string, line: number): string {

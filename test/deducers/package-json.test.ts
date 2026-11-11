@@ -1,7 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as os from 'os';
-import * as assert from 'assert';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as assert from 'node:assert';
 import { describe, test, beforeAll, afterAll } from '@jest/globals';
 import { PackageJsonDeducer } from '../../src/deducers/package-json.js';
 import { Position } from '../../src/types.js';

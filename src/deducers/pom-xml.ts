@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { IPositionDeducer } from '../interfaces.js';
 import { Position } from '../types.js';
 
@@ -11,7 +11,7 @@ export class PomXmlDeducer implements IPositionDeducer {
     dependencyName: string,
   ): Position | null {
     try {
-      const content: string = fs.readFileSync(manifestPath, 'utf-8');
+      const content: string = fs.readFileSync(manifestPath, 'utf8');
       const [groupId, artifactId] = dependencyName.split(':');
       const lines: string[] = content.split('\n');
 

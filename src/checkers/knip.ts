@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {

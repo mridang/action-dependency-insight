@@ -7,8 +7,8 @@ import { AnalysisResult, Position } from './types.js';
 export interface IPositionDeducer {
   /**
    * Finds the line and column of a dependency in a given manifest file.
-   * @param manifestPath The full path to the manifest file.
-   * @param dependencyName The name of the dependency to find.
+   * @param manifestPath - The full path to the manifest file.
+   * @param dependencyName - The name of the dependency to find.
    * @returns A Position object, or null if not found.
    */
   findDependencyPosition(
@@ -33,7 +33,7 @@ export interface IDependencyChecker {
 
   /**
    * Runs the dependency analysis for a given project path.
-   * @param projectPath The absolute path to the project's root directory.
+   * @param projectPath - The absolute path to the project's root directory.
    * @param debug
    * @returns An array of analysis results.
    */
@@ -49,7 +49,7 @@ export interface IDependencyChecker {
 export interface IFormatter {
   /**
    * Formats and outputs the analysis results.
-   * @param results The array of analysis results to format.
+   * @param results - The array of analysis results to format.
    * @param helpText
    */
   format(results: AnalysisResult[], helpText: string): Promise<void>;

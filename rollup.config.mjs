@@ -5,7 +5,7 @@ import * as nodules from 'node:module';
 import json from '@rollup/plugin-json';
 
 const NODE_BUILTINS = nodules.builtinModules.reduce(
-  (acc, name) => acc.concat([name, `node:${name}`]),
+  (acc, name) => [...acc, name, `node:${name}`],
   [],
 );
 
@@ -32,10 +32,12 @@ export default (configOverrides = {}) => ({
   onwarn(warning, warn) {
     switch (warning.code) {
       case 'CIRCULAR_DEPENDENCY':
-      case 'THIS_IS_UNDEFINED':
+      case 'THIS_IS_UNDEFINED': {
         return;
-      default:
+      }
+      default: {
         warn(warning);
+      }
     }
   },
   plugins: [

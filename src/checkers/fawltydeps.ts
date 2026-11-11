@@ -1,7 +1,7 @@
-import { execSync } from 'child_process';
+import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { existsSync } from 'fs';
-import * as path from 'path';
+import { existsSync } from 'node:fs';
+import * as path from 'node:path';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
   AnalysisResult,
@@ -98,9 +98,9 @@ export class FawltyDepsChecker implements IDependencyChecker {
 
     const command = existsSync(poetryLockPath)
       ? 'poetry run fawltydeps --json'
-      : existsSync(uvLockPath)
+      : (existsSync(uvLockPath)
         ? 'uv run fawltydeps --json'
-        : null;
+        : null);
 
     if (!command) {
       throw new Error(

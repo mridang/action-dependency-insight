@@ -2,12 +2,12 @@ import { AnalysisResult, DependencyStatus } from '../types.js';
 import { IFormatter } from '../interfaces.js';
 
 const colors = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  yellow: '\x1b[33m',
-  cyan: '\x1b[36m',
-  white: '\x1b[37m',
-  gray: '\x1b[90m',
+  reset: '\u001B[0m',
+  red: '\u001B[31m',
+  yellow: '\u001B[33m',
+  cyan: '\u001B[36m',
+  white: '\u001B[37m',
+  gray: '\u001B[90m',
 };
 
 /**
