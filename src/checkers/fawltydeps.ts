@@ -1,7 +1,11 @@
+/**
+ * Dependency checker that wraps FawltyDeps to find unused and undeclared Python packages.
+ * @file
+ */
 import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { existsSync } from 'node:fs';
-import * as path from 'node:path';
+import path from 'node:path';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
   AnalysisResult,
@@ -20,6 +24,15 @@ interface FawltyDepsOutput {
   unused_deps?: FawltyDepsFinding[];
   undeclared_deps?: FawltyDepsFinding[];
 }
+
+/**
+ * The lock files FawltyDeps can run against, in priority order, each paired
+ * with the command that runs the tool through that lock file's package manager.
+ */
+const LOCKFILE_COMMANDS: [string, string][] = [
+  ['poetry.lock', 'poetry run fawltydeps --json'],
+  ['uv.lock', 'uv run fawltydeps --json'],
+];
 
 const helpText = `
 <br />
@@ -45,6 +58,9 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 `;
 
+/**
+ * Checks Python projects for unused and undeclared dependencies using FawltyDeps.
+ */
 export class FawltyDepsChecker implements IDependencyChecker {
   public readonly name: string = 'FawltyDeps';
   public readonly manifestFile: string = 'pyproject.toml';
@@ -57,6 +73,15 @@ export class FawltyDepsChecker implements IDependencyChecker {
     this.runFn = runFn || this.defaultRunFn;
   }
 
+  /**
+   * Runs the checker against a project and maps its output to analysis results.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @param debug - Whether to log the raw tool output to the console.
+   * @returns The analysis results together with the troubleshooting help text.
+   * @throws ToolConfigurationError when the tool is missing or fails to run.
+   * @example
+   * const { checkResult } = checker.run('/workspace/app', false);
+   */
   public run(
     projectPath: string,
     debug: boolean,
@@ -92,15 +117,20 @@ export class FawltyDepsChecker implements IDependencyChecker {
     }
   }
 
+  /**
+   * Runs FawltyDeps through the lock file's package manager and returns its JSON report.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns The raw JSON report, or an empty string when FawltyDeps reports findings.
+   * @throws Error when the project has neither a poetry.lock nor a uv.lock file.
+   * @example
+   * const report = this.defaultRunFn('/workspace/app');
+   */
   private defaultRunFn(projectPath: string): string {
-    const poetryLockPath = path.join(projectPath, 'poetry.lock');
-    const uvLockPath = path.join(projectPath, 'uv.lock');
-
-    const command = existsSync(poetryLockPath)
-      ? 'poetry run fawltydeps --json'
-      : (existsSync(uvLockPath)
-        ? 'uv run fawltydeps --json'
-        : null);
+    const command: string | null =
+      LOCKFILE_COMMANDS.find(([lockFile]) =>
+        // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so lock file detection stays synchronous
+        existsSync(path.join(projectPath, lockFile)),
+      )?.[1] ?? null;
 
     if (!command) {
       throw new Error(
@@ -109,9 +139,10 @@ export class FawltyDepsChecker implements IDependencyChecker {
     }
 
     try {
+      // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the tool runs synchronously
       return execSync(command, {
         cwd: projectPath,
-        encoding: 'utf-8',
+        encoding: 'utf8',
         maxBuffer: MAX_OUTPUT_BUFFER,
       });
     } catch (error) {
@@ -123,6 +154,14 @@ export class FawltyDepsChecker implements IDependencyChecker {
     }
   }
 
+  /**
+   * Converts FawltyDeps' JSON report into the standard analysis results.
+   * @param jsonOutput - The raw JSON report produced by FawltyDeps.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns One analysis result per unused or undeclared package.
+   * @example
+   * const results = this.parseOutput('{"unused_deps":[]}', '/workspace/app');
+   */
   private parseOutput(
     jsonOutput: string,
     projectPath: string,

@@ -1,3 +1,7 @@
+/**
+ * Dependency checker that wraps Knip to find unused and unlisted npm packages.
+ * @file
+ */
 import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
@@ -70,6 +74,9 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
 
 `;
 
+/**
+ * Checks Node.js projects for unused and undeclared dependencies using Knip.
+ */
 export class KnipChecker implements IDependencyChecker {
   public readonly name: string = 'Knip';
   public readonly manifestFile: string = 'package.json';
@@ -82,6 +89,15 @@ export class KnipChecker implements IDependencyChecker {
     this.runFn = runFn || this.defaultRunFn;
   }
 
+  /**
+   * Runs the checker against a project and maps its output to analysis results.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @param debug - Whether to log the raw tool output to the console.
+   * @returns The analysis results together with the troubleshooting help text.
+   * @throws ToolConfigurationError when the tool is missing or fails to run.
+   * @example
+   * const { checkResult } = checker.run('/workspace/app', false);
+   */
   public run(
     projectPath: string,
     debug: boolean,
@@ -117,15 +133,30 @@ export class KnipChecker implements IDependencyChecker {
     }
   }
 
+  /**
+   * Executes Knip in the project directory and returns its JSON report.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns The raw JSON report written to standard output.
+   * @example
+   * const report = this.defaultRunFn('/workspace/app');
+   */
   private defaultRunFn(projectPath: string): string {
+    // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the tool runs synchronously
     return execSync(`npx knip --no-exit-code --no-progress --reporter=json`, {
       cwd: projectPath,
       stdio: 'pipe',
-      encoding: 'utf-8',
+      encoding: 'utf8',
       maxBuffer: MAX_OUTPUT_BUFFER,
     });
   }
 
+  /**
+   * Converts Knip's JSON report into the standard analysis results.
+   * @param jsonOutput - The raw JSON report produced by Knip.
+   * @returns One analysis result per flagged dependency.
+   * @example
+   * const results = this.parseOutput('{"issues":[]}');
+   */
   private parseOutput(jsonOutput: string): AnalysisResult[] {
     const parsedData = JSON.parse(jsonOutput);
     const data: KnipFileIssues[] = parsedData.issues || [];

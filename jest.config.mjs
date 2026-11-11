@@ -1,3 +1,7 @@
+/**
+ * Jest configuration for unit and integration tests, including the JUnit reporter.
+ * @file
+ */
 export default {
   preset: 'ts-jest/presets/default-esm',
   transform: {

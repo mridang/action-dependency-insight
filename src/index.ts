@@ -1,3 +1,8 @@
+/**
+ * The main logic of the GitHub Action. It detects which checkers apply to the
+ * project, runs them, and reports the findings to the job summary and console.
+ * @file
+ */
 import {
   endGroup,
   getInput,
@@ -19,10 +24,12 @@ const ContextCtor = context.constructor as new () => Context;
  * Retrieves the working directory from the action's 'working-directory' input.
  * @returns The specified working directory or the current process's
  * working directory if the input is empty.
+ * @example
+ * const projectDir = getWorkingDirectory();
  */
 function getWorkingDirectory(): string {
   const dir = getInput('working-directory').trim();
-  return dir ? dir : process.cwd();
+  return dir || process.cwd();
 }
 
 /**
@@ -30,6 +37,9 @@ function getWorkingDirectory(): string {
  * In a JEST test environment, it throws an error instead of calling
  * `actionFailed`.
  * @param message - The error message or Error object.
+ * @throws The message wrapped in an Error when running under Jest.
+ * @example
+ * setFailed('Could not detect a supported project type.');
  */
 function setFailed(message: string | Error): void {
   if (process.env.JEST_WORKER_ID) {
@@ -44,10 +54,14 @@ const consoleFormatter = new ConsoleFormatter();
 
 /**
  * The main entry point for the action.
- * @param [_ghCtx] - The GitHub context object.
+ * @param [_ghCtx] - The GitHub context object, injectable for tests.
+ * @returns A promise that resolves once the checks have run and the outcome
+ * has been reported.
+ * @example
+ * await run();
  */
 // noinspection JSUnusedLocalSymbols
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, unused-imports/no-unused-vars -- the context parameter is injectable for tests and otherwise unused
 export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
   try {
     const workingDirectory = getWorkingDirectory();

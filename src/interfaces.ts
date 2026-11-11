@@ -1,3 +1,7 @@
+/**
+ * Contracts implemented by the checkers, position deducers and formatters.
+ * @file
+ */
 import { AnalysisResult, Position } from './types.js';
 
 /**
@@ -34,8 +38,8 @@ export interface IDependencyChecker {
   /**
    * Runs the dependency analysis for a given project path.
    * @param projectPath - The absolute path to the project's root directory.
-   * @param debug
-   * @returns An array of analysis results.
+   * @param debug - Whether the checker should log the raw tool output.
+   * @returns The analysis results together with the help text to show.
    */
   run(
     projectPath: string,
@@ -50,7 +54,7 @@ export interface IFormatter {
   /**
    * Formats and outputs the analysis results.
    * @param results - The array of analysis results to format.
-   * @param helpText
+   * @param helpText - The troubleshooting guidance to include in the output.
    */
   format(results: AnalysisResult[], helpText: string): Promise<void>;
 }

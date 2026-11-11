@@ -1,8 +1,12 @@
+/**
+ * Dependency checker that runs the Maven dependency analyzer and reads its HTML report.
+ * @file
+ */
 import { execSync } from 'node:child_process';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { existsSync, readFileSync } from 'node:fs';
-import * as path from 'node:path';
-import * as cheerio from 'cheerio';
+import path from 'node:path';
+import { load, type CheerioAPI } from 'cheerio';
 import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import {
   AnalysisResult,
@@ -36,6 +40,10 @@ If you believe a dependency has been incorrectly flagged, we recommend the follo
     - If the local results **are correct** but the GitHub Action's results are not, the issue is with this action's wrapper. Please open an issue on **this repository's issue tracker**.
 `;
 
+/**
+ * Checks Maven projects for unused and undeclared dependencies using the
+ * dependency analyzer plugin.
+ */
 export class MavenChecker implements IDependencyChecker {
   public readonly name: string = 'Maven Dependency Analyzer';
   public readonly manifestFile: string = 'pom.xml';
@@ -48,6 +56,15 @@ export class MavenChecker implements IDependencyChecker {
     this.runFn = runFn || this.defaultRunFn;
   }
 
+  /**
+   * Runs the checker against a project and maps its output to analysis results.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @param debug - Whether to log the raw tool output to the console.
+   * @returns The analysis results together with the troubleshooting help text.
+   * @throws ToolConfigurationError when the tool is missing or fails to run.
+   * @example
+   * const { checkResult } = checker.run('/workspace/app', false);
+   */
   public run(
     projectPath: string,
     debug: boolean,
@@ -83,11 +100,19 @@ export class MavenChecker implements IDependencyChecker {
     }
   }
 
+  /**
+   * Runs the Maven analysis goal and returns the generated HTML report.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns The contents of the dependency analysis HTML report.
+   * @example
+   * const html = this.defaultRunFn('/workspace/app');
+   */
   private defaultRunFn(projectPath: string): string {
     const command = 'mvn dependency:analyze-report';
+    // eslint-disable-next-line n/no-sync, sonarjs/no-os-command-from-path -- the checker contract is synchronous, and mvn is resolved from the workflow PATH by design
     execSync(command, {
       cwd: projectPath,
-      encoding: 'utf-8',
+      encoding: 'utf8',
       stdio: 'pipe',
       maxBuffer: MAX_OUTPUT_BUFFER,
     });
@@ -103,14 +128,26 @@ export class MavenChecker implements IDependencyChecker {
       'reports',
       'dependency-analysis.html',
     );
+    // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the report read stays synchronous
     const reportPath = existsSync(reportsReportPath)
       ? reportsReportPath
       : siteReportPath;
-    return readFileSync(reportPath, 'utf-8');
+    // eslint-disable-next-line n/no-sync -- the checker contract is synchronous, so the report read stays synchronous
+    return readFileSync(reportPath, 'utf8');
   }
 
+  /**
+   * Extracts the dependency rows from one section of the Maven report.
+   * @param $ - The loaded HTML document of the report.
+   * @param sectionId - The identifier of the report heading for the section.
+   * @param status - The dependency status to assign to every row found.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns The analysis results found in the section.
+   * @example
+   * const rows = this.parseSection($, 'Unused_but_Declared_Dependencies', DependencyStatus.UNUSED, '/workspace/app');
+   */
   private parseSection(
-    $: cheerio.CheerioAPI,
+    $: CheerioAPI,
     sectionId: string,
     status: DependencyStatus,
     projectPath: string,
@@ -128,7 +165,8 @@ export class MavenChecker implements IDependencyChecker {
         return;
       }
 
-      const [groupId, artifactId, version, scope, , , optional] = cells;
+      const [groupId, artifactId, version, scope] = cells;
+      const optional = cells[6];
       const name = `${groupId}:${artifactId}`;
 
       results.push({
@@ -159,11 +197,19 @@ export class MavenChecker implements IDependencyChecker {
     return results;
   }
 
+  /**
+   * Converts the Maven HTML report into the standard analysis results.
+   * @param htmlOutput - The HTML content of the dependency analysis report.
+   * @param projectPath - The absolute path to the project's root directory.
+   * @returns The unused and then the undeclared dependency results.
+   * @example
+   * const results = this.parseOutput(html, '/workspace/app');
+   */
   private parseOutput(
     htmlOutput: string,
     projectPath: string,
   ): AnalysisResult[] {
-    const $ = cheerio.load(htmlOutput);
+    const $ = load(htmlOutput);
     const unused = this.parseSection(
       $,
       'Unused_but_Declared_Dependencies',

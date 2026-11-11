@@ -1,7 +1,11 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import * as os from 'node:os';
-import * as assert from 'node:assert';
+/**
+ * Tests for the PyprojectTomlDeducer, using temporary manifest files.
+ * @file
+ */
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
+import assert from 'node:assert/strict';
 import { describe, test, beforeAll, afterAll } from '@jest/globals';
 import { PyprojectTomlDeducer } from '../../src/deducers/pyproject-toml.js';
 import { Position } from '../../src/types.js';
@@ -9,15 +13,15 @@ import { Position } from '../../src/types.js';
 describe('PyprojectTomlDeducer', () => {
   let tempDir: string;
 
-  beforeAll(() => {
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'deducer-toml-'));
+  beforeAll(async () => {
+    tempDir = await mkdtemp(path.join(tmpdir(), 'deducer-toml-'));
   });
 
-  afterAll(() => {
-    fs.rmSync(tempDir, { recursive: true, force: true });
+  afterAll(async () => {
+    await rm(tempDir, { recursive: true, force: true });
   });
 
-  test('should find dependency in dependencies section', () => {
+  test('should find dependency in dependencies section', async () => {
     const content = [
       '[tool.poetry.dependencies]',
       'requests = "^2.25.1"',
@@ -25,7 +29,7 @@ describe('PyprojectTomlDeducer', () => {
       'pytest = "^6.2.2"',
     ].join('\n');
     const filePath = path.join(tempDir, 'pyproject.toml');
-    fs.writeFileSync(filePath, content);
+    await writeFile(filePath, content);
 
     const deducer = new PyprojectTomlDeducer();
     const position: Position | null = deducer.findDependencyPosition(
@@ -35,10 +39,10 @@ describe('PyprojectTomlDeducer', () => {
     assert.deepStrictEqual(position, { line: 2, column: 1 });
   });
 
-  test('should find dependency with quotes', () => {
+  test('should find dependency with quotes', async () => {
     const content = `[tool.poetry.dependencies]\n"my-package" = { version = "^1.0", python = "^3.9" }`;
     const filePath = path.join(tempDir, 'pyproject.toml');
-    fs.writeFileSync(filePath, content);
+    await writeFile(filePath, content);
 
     const deducer = new PyprojectTomlDeducer();
     const position = deducer.findDependencyPosition(filePath, 'my-package');

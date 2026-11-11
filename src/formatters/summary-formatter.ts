@@ -1,3 +1,7 @@
+/**
+ * Writes the analysis results to GitHub annotations and the job summary.
+ * @file
+ */
 import { error, summary } from '@actions/core';
 import { AnalysisResult, DependencyStatus } from '../types.js';
 import { IFormatter } from '../interfaces.js';
@@ -8,7 +12,18 @@ const ContextCtor = context.constructor as new () => Context;
 
 type SummaryTableRow = { data: string; header?: boolean }[];
 
+/**
+ * Publishes analysis results as workflow annotations and a job summary table.
+ */
 export class SummaryFormatter implements IFormatter {
+  /**
+   * Creates the annotations and writes the job summary for the results.
+   * @param results - The analysis results to publish.
+   * @param helpText - The troubleshooting guidance to place in the summary.
+   * @returns A promise that resolves once the summary has been written.
+   * @example
+   * await new SummaryFormatter().format(results, helpText);
+   */
   public async format(
     results: AnalysisResult[],
     helpText: string,
@@ -17,6 +32,12 @@ export class SummaryFormatter implements IFormatter {
     await this.generateSummary(results, helpText);
   }
 
+  /**
+   * Emits a workflow error annotation for each result that has a position.
+   * @param results - The analysis results to annotate.
+   * @example
+   * this.createAnnotations(results);
+   */
   private createAnnotations(results: AnalysisResult[]): void {
     results.forEach((result) => {
       if (result.position) {
@@ -30,6 +51,14 @@ export class SummaryFormatter implements IFormatter {
     });
   }
 
+  /**
+   * Writes the results table and troubleshooting details to the job summary.
+   * @param results - The analysis results to tabulate.
+   * @param helpText - The troubleshooting guidance placed in a details block.
+   * @returns A promise that resolves once the summary has been written.
+   * @example
+   * await this.generateSummary(results, helpText);
+   */
   private async generateSummary(
     results: AnalysisResult[],
     helpText: string,
@@ -41,6 +70,13 @@ export class SummaryFormatter implements IFormatter {
       .write();
   }
 
+  /**
+   * Builds the rows of the job summary table, including a header row.
+   * @param results - The analysis results to render as rows.
+   * @returns The table rows, starting with the header row.
+   * @example
+   * const rows = this.createTable(results);
+   */
   private createTable(results: AnalysisResult[]): SummaryTableRow[] {
     const tableHeader: SummaryTableRow = [
       { data: 'Status', header: true },
@@ -84,6 +120,9 @@ export class SummaryFormatter implements IFormatter {
    * @param filePath - The path to the file from the repository root.
    * @param line - The 1-based line number to link to.
    * @returns A fully qualified URL to the file line.
+   * @throws Error when the workflow context lacks the server URL, repository owner, name or commit SHA.
+   * @example
+   * const url = SummaryFormatter.generateGitHubLink('package.json', 4);
    */
   private static generateGitHubLink(filePath: string, line: number): string {
     const {

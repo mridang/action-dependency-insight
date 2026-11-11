@@ -1,5 +1,9 @@
-import * as path from 'node:path';
-import * as assert from 'node:assert';
+/**
+ * Tests for the KnipChecker, run through a Docker image built from the fixture.
+ * @file
+ */
+import path from 'node:path';
+import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { KnipChecker } from '../../src/checkers/knip.js';
@@ -12,11 +16,13 @@ describe('KnipChecker (Docker)', () => {
   const imageName = 'node-checker-test';
 
   const dockerRunFn = (): string => {
+    // eslint-disable-next-line n/no-sync -- the Docker build runs synchronously inside the synchronous checker test
     execSync(
       `docker build --tag=${imageName} --file=${projectPath}/Dockerfile ${projectPath}`,
       { stdio: 'inherit' },
     );
-    return execSync(`docker run --rm ${imageName}`, { encoding: 'utf-8' });
+    // eslint-disable-next-line n/no-sync -- the Docker run runs synchronously inside the synchronous checker test
+    return execSync(`docker run --rm ${imageName}`, { encoding: 'utf8' });
   };
 
   test('should throw an error if command is not found', () => {
@@ -32,7 +38,7 @@ describe('KnipChecker (Docker)', () => {
 
   test('should throw an error for any generic error', () => {
     const errorRunFn = () => {
-      throw new Error();
+      throw new Error('Generic failure');
     };
     const checker = new KnipChecker(new PackageJsonDeducer(), errorRunFn);
     assert.throws(() => checker.run(projectPath, true), ToolConfigurationError);
