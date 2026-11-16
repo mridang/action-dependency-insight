@@ -8,8 +8,8 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 // noinspection ES6PreferShortImport
 import { run } from '../src/index.js';
-import { withTempDir } from './helpers/with-temp-dir.js';
-import { withEnvVars } from './helpers/with-env-vars.js';
+import { withTemporaryDir } from './helpers/with-temporary-dir.js';
+import { withEnvVariables } from './helpers/with-env-variables.js';
 import { tmpdir } from 'node:os';
 
 /**
@@ -40,7 +40,7 @@ async function runAction(
   const eventPath = path.join(eventDir, 'event.json');
   await writeFile(eventPath, JSON.stringify(eventPayload));
 
-  const wrapped = withEnvVars(
+  const wrapped = withEnvVariables(
     {
       ...extraEnv,
       ...Object.fromEntries(
@@ -88,7 +88,7 @@ describe('Action Integration Tests', () => {
   ];
 
   test.each(testMatrix)('$description', (params) => {
-    return withTempDir(async ({ tmp }) => {
+    return withTemporaryDir(async ({ tmp }) => {
       await writeFile(
         path.join(tmp, 'package.json'),
         JSON.stringify(params.packageJson),

@@ -17,9 +17,9 @@
  * @param fn - The asynchronous function to execute.
  * @returns A new async function that will run with the modified environment.
  * @example
- * await withEnvVars({ CI: 'true' }, async () => runSomething())();
+ * await withEnvVariables({ CI: 'true' }, async () => runSomething())();
  */
-export function withEnvVars<T>(
+export function withEnvVariables<T>(
   env: Record<string, string | undefined>,
   fn: () => Promise<T>,
 ): () => Promise<T> {
@@ -28,12 +28,12 @@ export function withEnvVars<T>(
 
     for (const key in env) {
       originalValues[key] = process.env[key];
-      const newValue = env[key];
+      const nextValue = env[key];
 
-      if (newValue === undefined) {
+      if (nextValue === undefined) {
         delete process.env[key];
       } else {
-        process.env[key] = newValue;
+        process.env[key] = nextValue;
       }
     }
 

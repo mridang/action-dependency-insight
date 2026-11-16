@@ -4,7 +4,7 @@
  * @file
  */
 
-// eslint-disable-next-line import/no-unresolved -- axios is declared in the fixture's package.json and only installed inside the Docker image
+// eslint-disable-next-line import/no-unresolved, e18e/ban-dependencies -- axios is declared in the fixture's package.json and only installed inside the Docker image; the fixture must import axios so Knip can detect it
 import axios from 'axios';
 
 console.log('Hello from Node.js!');
