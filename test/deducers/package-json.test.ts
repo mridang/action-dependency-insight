@@ -11,14 +11,14 @@ import { PackageJsonDeducer } from '../../src/deducers/package-json.js';
 import { Position } from '../../src/types.js';
 
 describe('PackageJsonDeducer', () => {
-  let tempDir: string;
+  let temporaryDir: string;
 
   beforeAll(async () => {
-    tempDir = await mkdtemp(path.join(tmpdir(), 'deducer-pkgjson-'));
+    temporaryDir = await mkdtemp(path.join(tmpdir(), 'deducer-pkgjson-'));
   });
 
   afterAll(async () => {
-    await rm(tempDir, { recursive: true, force: true });
+    await rm(temporaryDir, { recursive: true, force: true });
   });
 
   test('should find dependency in devDependencies section', async () => {
@@ -35,7 +35,7 @@ describe('PackageJsonDeducer', () => {
       null,
       2,
     );
-    const filePath = path.join(tempDir, 'package.json');
+    const filePath = path.join(temporaryDir, 'package.json');
     await writeFile(filePath, content);
 
     const deducer = new PackageJsonDeducer();

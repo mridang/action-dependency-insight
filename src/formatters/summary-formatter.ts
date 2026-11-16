@@ -39,7 +39,7 @@ export class SummaryFormatter implements IFormatter {
    * this.createAnnotations(results);
    */
   private createAnnotations(results: AnalysisResult[]): void {
-    results.forEach((result) => {
+    for (const result of results) {
       if (result.position) {
         error(`Unused dependency: ${result.dependency.name}`, {
           title: `Unused ${result.category} dependency`,
@@ -48,7 +48,7 @@ export class SummaryFormatter implements IFormatter {
           startColumn: result.position.column,
         });
       }
-    });
+    }
   }
 
   /**

@@ -18,11 +18,11 @@ import { Position } from '../types.js';
 function collectBlockLines(lines: string[], start: number): string[] {
   const blockLines: string[] = [];
   for (
-    let j = start;
-    j < lines.length && !lines[j].includes('</dependency>');
-    j++
+    let index = start;
+    index < lines.length && !lines[index].includes('</dependency>');
+    index++
   ) {
-    blockLines.push(lines[j]);
+    blockLines.push(lines[index]);
   }
   return blockLines;
 }
@@ -42,9 +42,9 @@ function findDeclaration(
   groupId: string,
   artifactId: string,
 ): Position | null {
-  for (const [i, line] of lines.entries()) {
+  for (const [index, line] of lines.entries()) {
     if (line.includes('<dependency>')) {
-      const blockLines = collectBlockLines(lines, i);
+      const blockLines = collectBlockLines(lines, index);
       const hasGroupId = blockLines.some((blockLine) =>
         blockLine.includes(`<groupId>${groupId}</groupId>`),
       );
@@ -54,7 +54,7 @@ function findDeclaration(
 
       if (hasGroupId && hasArtifactId) {
         return {
-          line: i + 1,
+          line: index + 1,
           column: line.indexOf('<dependency>') + 1,
         };
       }

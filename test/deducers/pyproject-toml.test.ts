@@ -11,14 +11,14 @@ import { PyprojectTomlDeducer } from '../../src/deducers/pyproject-toml.js';
 import { Position } from '../../src/types.js';
 
 describe('PyprojectTomlDeducer', () => {
-  let tempDir: string;
+  let temporaryDir: string;
 
   beforeAll(async () => {
-    tempDir = await mkdtemp(path.join(tmpdir(), 'deducer-toml-'));
+    temporaryDir = await mkdtemp(path.join(tmpdir(), 'deducer-toml-'));
   });
 
   afterAll(async () => {
-    await rm(tempDir, { recursive: true, force: true });
+    await rm(temporaryDir, { recursive: true, force: true });
   });
 
   test('should find dependency in dependencies section', async () => {
@@ -28,7 +28,7 @@ describe('PyprojectTomlDeducer', () => {
       '[tool.poetry.dev-dependencies]',
       'pytest = "^6.2.2"',
     ].join('\n');
-    const filePath = path.join(tempDir, 'pyproject.toml');
+    const filePath = path.join(temporaryDir, 'pyproject.toml');
     await writeFile(filePath, content);
 
     const deducer = new PyprojectTomlDeducer();
@@ -41,7 +41,7 @@ describe('PyprojectTomlDeducer', () => {
 
   test('should find dependency with quotes', async () => {
     const content = `[tool.poetry.dependencies]\n"my-package" = { version = "^1.0", python = "^3.9" }`;
-    const filePath = path.join(tempDir, 'pyproject.toml');
+    const filePath = path.join(temporaryDir, 'pyproject.toml');
     await writeFile(filePath, content);
 
     const deducer = new PyprojectTomlDeducer();

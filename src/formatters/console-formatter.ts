@@ -77,8 +77,8 @@ export class ConsoleFormatter implements IFormatter {
 
     const headerRow = headers
       .map(
-        (header, i) =>
-          `${colors.white}${header.padEnd(columnWidths[i])}${colors.reset}`,
+        (header, index) =>
+          `${colors.white}${header.padEnd(columnWidths[index])}${colors.reset}`,
       )
       .join(' | ');
 

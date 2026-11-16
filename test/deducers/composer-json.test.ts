@@ -11,14 +11,14 @@ import { ComposerJsonDeducer } from '../../src/deducers/composer-json.js';
 import { Position } from '../../src/types.js';
 
 describe('ComposerJsonDeducer', () => {
-  let tempDir: string;
+  let temporaryDir: string;
 
   beforeAll(async () => {
-    tempDir = await mkdtemp(path.join(tmpdir(), 'deducer-composer-'));
+    temporaryDir = await mkdtemp(path.join(tmpdir(), 'deducer-composer-'));
   });
 
   afterAll(async () => {
-    await rm(tempDir, { recursive: true, force: true });
+    await rm(temporaryDir, { recursive: true, force: true });
   });
 
   test('should find dependency in require section', async () => {
@@ -32,7 +32,7 @@ describe('ComposerJsonDeducer', () => {
       null,
       2,
     );
-    const filePath = path.join(tempDir, 'composer.json');
+    const filePath = path.join(temporaryDir, 'composer.json');
     await writeFile(filePath, content);
 
     const deducer = new ComposerJsonDeducer();
@@ -45,7 +45,7 @@ describe('ComposerJsonDeducer', () => {
 
   test('should return null for missing dependency', async () => {
     const content = JSON.stringify({ require: { php: '^8.1' } });
-    const filePath = path.join(tempDir, 'composer.json');
+    const filePath = path.join(temporaryDir, 'composer.json');
     await writeFile(filePath, content);
 
     const deducer = new ComposerJsonDeducer();

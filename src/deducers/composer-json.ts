@@ -31,14 +31,14 @@ export class ComposerJsonDeducer implements IPositionDeducer {
       const content: string = await readFile(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
-      for (const [i, line] of lines.entries()) {
+      for (const [index, line] of lines.entries()) {
         // Look for keys like "vendor/package-name": "version"
         const regex: RegExp = new RegExp(
           String.raw`^\s*"${dependencyName}"\s*:`,
         );
         if (regex.test(line)) {
           return {
-            line: i + 1,
+            line: index + 1,
             column: line.indexOf(`"${dependencyName}"`) + 1,
           };
         }

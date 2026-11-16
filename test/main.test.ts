@@ -7,13 +7,14 @@ import { describe, expect, test } from '@jest/globals';
 import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 // noinspection ES6PreferShortImport
-import { withTempDir } from './helpers/with-temp-dir.js';
-import { withEnvVars } from './helpers/with-env-vars.js';
+import { withTemporaryDir } from './helpers/with-temporary-dir.js';
+import { withEnvVariables } from './helpers/with-env-variables.js';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import vm, { constants as VM } from 'node:vm';
 import { rollup } from 'rollup';
 import createRollupConfig from '../rollup.config.mjs';
+// eslint-disable-next-line e18e/ban-dependencies -- the test signs tokens with jsonwebtoken, the same library the action verifies with, so swapping it would change what is under test
 import jwt from 'jsonwebtoken';
 
 /**
@@ -35,12 +36,12 @@ export async function bundleToPath(): Promise<string> {
   });
 
   const bundle = await rollup(testConfig);
-  const tempDir = await mkdtemp(path.join(tmpdir(), 'test-bundle-'));
-  const outputFile = path.join(tempDir, `bundle-${Date.now()}.cjs`);
+  const temporaryDir = await mkdtemp(path.join(tmpdir(), 'test-bundle-'));
+  const outputFile = path.join(temporaryDir, `bundle-${Date.now()}.cjs`);
 
   await copyFile(
     path.join(process.cwd(), 'tsconfig.json'),
-    path.join(tempDir, 'tsconfig.json'),
+    path.join(temporaryDir, 'tsconfig.json'),
   );
   try {
     await bundle.write({ ...testConfig.output, file: outputFile });
@@ -106,7 +107,7 @@ async function runAction(
   };
 
   try {
-    const wrappedRun = withEnvVars(env, async () => {
+    const wrappedRun = withEnvVariables(env, async () => {
       const actionScript = await bundleToPath();
       const script = await readFile(actionScript, 'utf8');
 
@@ -172,7 +173,7 @@ describe('Action Integration Tests', () => {
   ];
 
   test.each(testMatrix)('$description', (params) => {
-    return withTempDir(async ({ tmp }) => {
+    return withTemporaryDir(async ({ tmp }) => {
       await writeFile(
         path.join(tmp, 'package.json'),
         JSON.stringify(params.packageJson),
