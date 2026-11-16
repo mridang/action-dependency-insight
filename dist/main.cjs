@@ -29554,12 +29554,12 @@ class PackageJsonDeducer {
         try {
             const content = await promises.readFile(manifestPath, 'utf8');
             const lines = content.split('\n');
-            for (const [i, line] of lines.entries()) {
+            for (const [index, line] of lines.entries()) {
                 // Look for keys like "package-name": "version"
                 const regex = new RegExp(String.raw `^\s*"${dependencyName}"\s*:`);
                 if (regex.test(line)) {
                     return {
-                        line: i + 1,
+                        line: index + 1,
                         column: line.indexOf(`"${dependencyName}"`) + 1,
                     };
                 }
@@ -29597,12 +29597,12 @@ class ComposerJsonDeducer {
         try {
             const content = await promises.readFile(manifestPath, 'utf8');
             const lines = content.split('\n');
-            for (const [i, line] of lines.entries()) {
+            for (const [index, line] of lines.entries()) {
                 // Look for keys like "vendor/package-name": "version"
                 const regex = new RegExp(String.raw `^\s*"${dependencyName}"\s*:`);
                 if (regex.test(line)) {
                     return {
-                        line: i + 1,
+                        line: index + 1,
                         column: line.indexOf(`"${dependencyName}"`) + 1,
                     };
                 }
@@ -29641,11 +29641,11 @@ class PyprojectTomlDeducer {
         try {
             const content = await promises.readFile(manifestPath, 'utf8');
             const lines = content.split('\n');
-            for (const [i, rawLine] of lines.entries()) {
+            for (const [index, rawLine] of lines.entries()) {
                 const line = rawLine.trim();
                 if (line.startsWith(dependencyName) ||
                     line.startsWith(`"${dependencyName}"`)) {
-                    return { line: i + 1, column: 1 };
+                    return { line: index + 1, column: 1 };
                 }
             }
         }
@@ -51524,8 +51524,8 @@ class MavenChecker {
  */
 function collectBlockLines(lines, start) {
     const blockLines = [];
-    for (let j = start; j < lines.length && !lines[j].includes('</dependency>'); j++) {
-        blockLines.push(lines[j]);
+    for (let index = start; index < lines.length && !lines[index].includes('</dependency>'); index++) {
+        blockLines.push(lines[index]);
     }
     return blockLines;
 }
@@ -51540,14 +51540,14 @@ function collectBlockLines(lines, start) {
  * const position = findDeclaration(lines, 'org.example', 'demo');
  */
 function findDeclaration(lines, groupId, artifactId) {
-    for (const [i, line] of lines.entries()) {
+    for (const [index, line] of lines.entries()) {
         if (line.includes('<dependency>')) {
-            const blockLines = collectBlockLines(lines, i);
+            const blockLines = collectBlockLines(lines, index);
             const hasGroupId = blockLines.some((blockLine) => blockLine.includes(`<groupId>${groupId}</groupId>`));
             const hasArtifactId = blockLines.some((blockLine) => blockLine.includes(`<artifactId>${artifactId}</artifactId>`));
             if (hasGroupId && hasArtifactId) {
                 return {
-                    line: i + 1,
+                    line: index + 1,
                     column: line.indexOf('<dependency>') + 1,
                 };
             }
@@ -51665,7 +51665,7 @@ class ConsoleFormatter {
         const headers = Object.keys(tableData[0]);
         const columnWidths = headers.map((header) => Math.max(header.length, ...tableData.map((row) => (row[header] || '').length)));
         const headerRow = headers
-            .map((header, i) => `${colors.white}${header.padEnd(columnWidths[i])}${colors.reset}`)
+            .map((header, index) => `${colors.white}${header.padEnd(columnWidths[index])}${colors.reset}`)
             .join(' | ');
         const separatorRow = columnWidths.map((w) => '-'.repeat(w)).join('-|-');
         const bodyRows = tableData.map((row) => {
@@ -57003,7 +57003,7 @@ class SummaryFormatter {
      * this.createAnnotations(results);
      */
     createAnnotations(results) {
-        results.forEach((result) => {
+        for (const result of results) {
             if (result.position) {
                 error(`Unused dependency: ${result.dependency.name}`, {
                     title: `Unused ${result.category} dependency`,
@@ -57012,7 +57012,7 @@ class SummaryFormatter {
                     startColumn: result.position.column,
                 });
             }
-        });
+        }
     }
     /**
      * Writes the results table and troubleshooting details to the job summary.
