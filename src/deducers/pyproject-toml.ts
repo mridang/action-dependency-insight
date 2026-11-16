@@ -3,8 +3,8 @@
  * @file
  */
 import { readFile } from 'node:fs/promises';
-import { IPositionDeducer } from '../interfaces.js';
-import { Position } from '../types.js';
+import type { IPositionDeducer } from '../interfaces.js';
+import type { Position } from '../types.js';
 
 /**
  * Finds dependency positions specifically within a pyproject.toml file.

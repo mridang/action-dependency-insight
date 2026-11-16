@@ -7,12 +7,9 @@ import { promisify } from 'node:util';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { pathExists } from './path-exists.js';
 import path from 'node:path';
-import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
-import {
-  AnalysisResult,
-  DependencyCategory,
-  DependencyStatus,
-} from '../types.js';
+import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
+import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 
 const execAsync = promisify(exec);
@@ -73,7 +70,7 @@ export class FawltyDepsChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn;
+    this.runFn = runFn || this.defaultRunFn.bind(this);
   }
 
   /**
@@ -130,7 +127,7 @@ export class FawltyDepsChecker implements IDependencyChecker {
    */
   private async defaultRunFn(projectPath: string): Promise<string> {
     const present = await Promise.all(
-      LOCKFILE_COMMANDS.map(([lockFile]) =>
+      LOCKFILE_COMMANDS.map(async ([lockFile]) =>
         pathExists(path.join(projectPath, lockFile)),
       ),
     );
@@ -152,8 +149,12 @@ export class FawltyDepsChecker implements IDependencyChecker {
       process.stderr.write(stderr);
       return stdout;
     } catch (error) {
-      // @ts-expect-error since these aren't errors
-      if (error instanceof Error && [1, 2, 3, 4, 5].includes(error.code)) {
+      if (
+        error instanceof Error &&
+        'code' in error &&
+        typeof error.code === 'number' &&
+        [1, 2, 3, 4, 5].includes(error.code)
+      ) {
         return '';
       }
       throw error;
@@ -172,7 +173,7 @@ export class FawltyDepsChecker implements IDependencyChecker {
     jsonOutput: string,
     projectPath: string,
   ): Promise<AnalysisResult[]> {
-    const data: FawltyDepsOutput = JSON.parse(jsonOutput);
+    const data = JSON.parse(jsonOutput) as FawltyDepsOutput;
 
     const unused: AnalysisResult[] = await Promise.all(
       (data.unused_deps || []).map(async (finding): Promise<AnalysisResult> => {

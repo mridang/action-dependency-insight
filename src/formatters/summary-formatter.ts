@@ -3,8 +3,9 @@
  * @file
  */
 import { error, summary } from '@actions/core';
-import { AnalysisResult, DependencyStatus } from '../types.js';
-import { IFormatter } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
+import { DependencyStatus } from '../types.js';
+import type { IFormatter } from '../interfaces.js';
 import { context } from '@actions/github';
 
 type Context = typeof context;
@@ -106,7 +107,7 @@ export class SummaryFormatter implements IFormatter {
           data: `<a href="${link}">${result.sourceFile}:${line}</a>`,
         },
         {
-          data: `<center><a href="${result.extra.link}"><img alt="View" src="${result.extra.icon}" /></a></center>`,
+          data: `<center><a href="${result.extra.link.href}"><img alt="View" src="${result.extra.icon.href}" /></a></center>`,
         },
       ];
     });

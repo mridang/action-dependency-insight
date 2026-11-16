@@ -29,7 +29,7 @@ import { tmpdir } from 'node:os';
  */
 async function runAction(
   inputs: Record<string, string>,
-  extraEnv: Record<string, string | undefined> = {},
+  extraEnv: Record<string, string | undefined> | undefined,
   eventPayload: unknown,
 ): Promise<string | void> {
   const summaryDir = await mkdtemp(path.join(tmpdir(), 'test-'));
@@ -52,9 +52,9 @@ async function runAction(
       GITHUB_STEP_SUMMARY: summaryPath,
       GITHUB_EVENT_PATH: eventPath,
     },
-    () => run(),
+    async () => run(),
   );
-  return await wrapped();
+  return wrapped();
 }
 
 describe('Action Integration Tests', () => {
@@ -87,14 +87,14 @@ describe('Action Integration Tests', () => {
     },
   ];
 
-  test.each(testMatrix)('$description', (params) => {
+  test.each(testMatrix)('$description', async (params) => {
     return withTemporaryDir(async ({ tmp }) => {
       await writeFile(
         path.join(tmp, 'package.json'),
         JSON.stringify(params.packageJson),
       );
 
-      const action = () =>
+      const action = async () =>
         runAction(
           {
             'github-token': 'fake-token',

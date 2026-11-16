@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { ComposerUnusedChecker } from '../../src/checkers/composer.js';
 import { ComposerJsonDeducer } from '../../src/deducers/composer-json.js';
-import { AnalysisResult } from '../../src/types.js';
+import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
 
 describe('ComposerUnusedChecker (Docker)', () => {
@@ -36,7 +36,7 @@ describe('ComposerUnusedChecker (Docker)', () => {
       errorRunFn,
     );
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });
@@ -50,7 +50,7 @@ describe('ComposerUnusedChecker (Docker)', () => {
       errorRunFn,
     );
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });

@@ -6,7 +6,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
-import { AnalysisResult } from '../../src/types.js';
+import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
 import { MavenChecker } from '../../src/checkers/maven.js';
 import { PomXmlDeducer } from '../../src/deducers/pom-xml.js';
@@ -33,7 +33,7 @@ describe('MavenChecker (Docker)', () => {
     };
     const checker = new MavenChecker(new PomXmlDeducer(), errorRunFn);
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });
@@ -44,7 +44,7 @@ describe('MavenChecker (Docker)', () => {
     };
     const checker = new MavenChecker(new PomXmlDeducer(), errorRunFn);
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });

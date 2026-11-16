@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { FawltyDepsChecker } from '../../src/checkers/fawltydeps.js';
 import { PyprojectTomlDeducer } from '../../src/deducers/pyproject-toml.js';
-import { AnalysisResult } from '../../src/types.js';
+import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
 
 describe('FawltyDepsChecker (Docker)', () => {
@@ -36,7 +36,7 @@ describe('FawltyDepsChecker (Docker)', () => {
       errorRunFn,
     );
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });
@@ -50,7 +50,7 @@ describe('FawltyDepsChecker (Docker)', () => {
       errorRunFn,
     );
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });

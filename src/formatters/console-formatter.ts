@@ -2,8 +2,9 @@
  * Renders analysis results as a colour-coded table for the console.
  * @file
  */
-import { AnalysisResult, DependencyStatus } from '../types.js';
-import { IFormatter } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
+import { DependencyStatus } from '../types.js';
+import type { IFormatter } from '../interfaces.js';
 
 const colors = {
   reset: '\u001B[0m',

@@ -11,7 +11,7 @@ import {
   setFailed as actionFailed,
   startGroup,
 } from '@actions/core';
-import { AnalysisResult } from './types.js';
+import type { AnalysisResult } from './types.js';
 import { getCheckersForProject } from './checkers/index.js';
 import { ConsoleFormatter } from './formatters/console-formatter.js';
 import { SummaryFormatter } from './formatters/summary-formatter.js';
@@ -73,7 +73,7 @@ export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
       setFailed('Could not detect a supported project type.');
       return;
     } else {
-      let helpText: string = '';
+      let helpText = '';
       let allResults: AnalysisResult[] = [];
 
       await selectedCheckers.reduce(async (previous, checker) => {

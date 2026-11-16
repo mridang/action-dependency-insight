@@ -3,8 +3,8 @@
  * @file
  */
 import { readFile } from 'node:fs/promises';
-import { IPositionDeducer } from '../interfaces.js';
-import { Position } from '../types.js';
+import type { IPositionDeducer } from '../interfaces.js';
+import type { Position } from '../types.js';
 
 /**
  * Finds dependency positions specifically within a package.json file.
@@ -33,9 +33,7 @@ export class PackageJsonDeducer implements IPositionDeducer {
 
       for (const [index, line] of lines.entries()) {
         // Look for keys like "package-name": "version"
-        const regex: RegExp = new RegExp(
-          String.raw`^\s*"${dependencyName}"\s*:`,
-        );
+        const regex = new RegExp(String.raw`^\s*"${dependencyName}"\s*:`);
         if (regex.test(line)) {
           return {
             line: index + 1,
