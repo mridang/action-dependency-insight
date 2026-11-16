@@ -9,14 +9,11 @@ import { readFile } from 'node:fs/promises';
 import { pathExists } from './path-exists.js';
 import path from 'node:path';
 import { load, type CheerioAPI } from 'cheerio';
-import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
-import {
-  AnalysisResult,
-  DependencyCategory,
-  DependencyStatus,
-} from '../types.js';
+import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
+import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
-import { Element } from 'domhandler';
+import type { Element } from 'domhandler';
 
 const execAsync = promisify(exec);
 
@@ -57,7 +54,7 @@ export class MavenChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn;
+    this.runFn = runFn || this.defaultRunFn.bind(this);
   }
 
   /**

@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 import { describe, test, beforeAll, afterAll } from '@jest/globals';
 import { PyprojectTomlDeducer } from '../../src/deducers/pyproject-toml.js';
-import { Position } from '../../src/types.js';
+import type { Position } from '../../src/types.js';
 
 describe('PyprojectTomlDeducer', () => {
   let temporaryDir: string;

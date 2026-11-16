@@ -5,12 +5,9 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
-import {
-  AnalysisResult,
-  DependencyCategory,
-  DependencyStatus,
-} from '../types.js';
+import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
+import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 
 const execAsync = promisify(exec);
@@ -53,7 +50,7 @@ export class ComposerUnusedChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn;
+    this.runFn = runFn || this.defaultRunFn.bind(this);
   }
 
   /**
@@ -108,7 +105,7 @@ export class ComposerUnusedChecker implements IDependencyChecker {
    * const report = await this.defaultRunFn('/workspace/app');
    */
   private async defaultRunFn(projectPath: string): Promise<string> {
-    const command: string = `./vendor/bin/composer-unused --no-progress --ignore-exit-code --output-format=json`;
+    const command = `./vendor/bin/composer-unused --no-progress --ignore-exit-code --output-format=json`;
     const { stdout, stderr } = await execAsync(command, {
       cwd: projectPath,
       encoding: 'utf8',
@@ -130,8 +127,8 @@ export class ComposerUnusedChecker implements IDependencyChecker {
     jsonOutput: string,
     projectPath: string,
   ): Promise<AnalysisResult[]> {
-    const data: ComposerUnusedOutput = JSON.parse(jsonOutput);
-    const manifestPath: string = `${projectPath}/${this.manifestFile}`;
+    const data = JSON.parse(jsonOutput) as ComposerUnusedOutput;
+    const manifestPath = `${projectPath}/${this.manifestFile}`;
 
     return Promise.all(
       (data['unused-packages'] || [])

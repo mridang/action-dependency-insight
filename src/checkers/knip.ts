@@ -5,12 +5,9 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
-import {
-  AnalysisResult,
-  DependencyCategory,
-  DependencyStatus,
-} from '../types.js';
+import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
+import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 
 const execAsync = promisify(exec);
@@ -89,7 +86,7 @@ export class KnipChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn;
+    this.runFn = runFn || this.defaultRunFn.bind(this);
   }
 
   /**
@@ -112,7 +109,7 @@ export class KnipChecker implements IDependencyChecker {
       }
       return {
         helpText,
-        checkResult: await this.parseOutput(stdout),
+        checkResult: this.parseOutput(stdout),
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
@@ -163,7 +160,7 @@ export class KnipChecker implements IDependencyChecker {
    * const results = this.parseOutput('{"issues":[]}');
    */
   private parseOutput(jsonOutput: string): AnalysisResult[] {
-    const parsedData = JSON.parse(jsonOutput);
+    const parsedData = JSON.parse(jsonOutput) as { issues?: KnipFileIssues[] };
     const data: KnipFileIssues[] = parsedData.issues || [];
 
     return data.flatMap((file) =>

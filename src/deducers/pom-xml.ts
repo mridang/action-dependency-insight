@@ -3,8 +3,8 @@
  * @file
  */
 import { readFile } from 'node:fs/promises';
-import { IPositionDeducer } from '../interfaces.js';
-import { Position } from '../types.js';
+import type { IPositionDeducer } from '../interfaces.js';
+import type { Position } from '../types.js';
 
 /**
  * Collects the lines of a Maven `<dependency>` block, starting at the given

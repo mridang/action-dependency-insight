@@ -8,7 +8,7 @@ import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { KnipChecker } from '../../src/checkers/knip.js';
 import { PackageJsonDeducer } from '../../src/deducers/package-json.js';
-import { AnalysisResult } from '../../src/types.js';
+import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
 
 describe('KnipChecker (Docker)', () => {
@@ -33,7 +33,7 @@ describe('KnipChecker (Docker)', () => {
     };
     const checker = new KnipChecker(new PackageJsonDeducer(), errorRunFn);
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });
@@ -44,7 +44,7 @@ describe('KnipChecker (Docker)', () => {
     };
     const checker = new KnipChecker(new PackageJsonDeducer(), errorRunFn);
     await assert.rejects(
-      () => checker.run(projectPath, true),
+      async () => checker.run(projectPath, true),
       ToolConfigurationError,
     );
   });

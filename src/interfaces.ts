@@ -2,7 +2,7 @@
  * Contracts implemented by the checkers, position deducers and formatters.
  * @file
  */
-import { AnalysisResult, Position } from './types.js';
+import type { AnalysisResult, Position } from './types.js';
 
 /**
  * An interface for strategies that find the exact line and column of a

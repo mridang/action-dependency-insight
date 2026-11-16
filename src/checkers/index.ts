@@ -5,7 +5,7 @@
  */
 import { pathExists } from './path-exists.js';
 import path from 'node:path';
-import { IDependencyChecker } from '../interfaces.js';
+import type { IDependencyChecker } from '../interfaces.js';
 import { KnipChecker } from './knip.js';
 import { ComposerUnusedChecker } from './composer.js';
 import { FawltyDepsChecker } from './fawltydeps.js';
@@ -33,7 +33,7 @@ export async function getCheckersForProject(
   projectPath: string,
 ): Promise<IDependencyChecker[]> {
   const present = await Promise.all(
-    allCheckers.map((checker) =>
+    allCheckers.map(async (checker) =>
       pathExists(path.join(projectPath, checker.manifestFile)),
     ),
   );

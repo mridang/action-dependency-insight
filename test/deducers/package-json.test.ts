@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 import { describe, test, beforeAll, afterAll } from '@jest/globals';
 import { PackageJsonDeducer } from '../../src/deducers/package-json.js';
-import { Position } from '../../src/types.js';
+import type { Position } from '../../src/types.js';
 
 describe('PackageJsonDeducer', () => {
   let temporaryDir: string;
