@@ -9,6 +9,12 @@ import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { pathExists } from './path-exists.js';
+import {
+  isListOf,
+  isOptionalListOf,
+  isString,
+  hasProperty,
+} from './json-guards.js';
 import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import type { AnalysisResult } from '../types.js';
 
@@ -23,6 +29,51 @@ interface FawltyDepsFinding {
 interface FawltyDepsOutput {
   unused_deps?: FawltyDepsFinding[];
   undeclared_deps?: FawltyDepsFinding[];
+}
+
+/**
+ * Tells whether a parsed JSON value is a reference to a source file.
+ * @param value - The parsed JSON value.
+ * @returns True when the value has a string `path`.
+ * @example
+ * isReference({ path: 'a.py' }); // true
+ */
+function isReference(value: unknown): value is { path: string } {
+  return hasProperty(value, 'path', isString);
+}
+
+/**
+ * Tells whether a parsed JSON value is a FawltyDeps finding.
+ * @param value - The parsed JSON value.
+ * @returns True when the value has a name and a list of references.
+ * @example
+ * isFinding({ name: 'a', references: [] }); // true
+ */
+function isFinding(value: unknown): value is FawltyDepsFinding {
+  return (
+    hasProperty(value, 'name', isString) &&
+    hasProperty(value, 'references', (references) =>
+      isListOf(references, isReference),
+    )
+  );
+}
+
+/**
+ * Tells whether a parsed JSON value has the shape of FawltyDeps' report.
+ * @param value - The parsed JSON value.
+ * @returns True when the value is a FawltyDeps report.
+ * @example
+ * isFawltyDepsOutput({ unused_deps: [] }); // true
+ */
+function isFawltyDepsOutput(value: unknown): value is FawltyDepsOutput {
+  return (
+    hasProperty(value, 'unused_deps', (findings) =>
+      isOptionalListOf(findings, isFinding),
+    ) &&
+    hasProperty(value, 'undeclared_deps', (findings) =>
+      isOptionalListOf(findings, isFinding),
+    )
+  );
 }
 
 /**
@@ -70,7 +121,7 @@ export class FawltyDepsChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn.bind(this);
+    this.runFn = runFn ?? this.defaultRunFn.bind(this);
   }
 
   /**
@@ -97,8 +148,11 @@ export class FawltyDepsChecker implements IDependencyChecker {
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
-        const stderr = (error as { stderr: string }).stderr;
-        if (stderr.includes('command not found')) {
+        const stderr: unknown = error.stderr;
+        if (
+          typeof stderr === 'string' &&
+          stderr.includes('command not found')
+        ) {
           throw new ToolConfigurationError(
             '`fawltydeps` is not installed.',
             'https://github.com/icanhazstring/composer-unused#installation',
@@ -173,10 +227,13 @@ export class FawltyDepsChecker implements IDependencyChecker {
     jsonOutput: string,
     projectPath: string,
   ): Promise<AnalysisResult[]> {
-    const data = JSON.parse(jsonOutput) as FawltyDepsOutput;
+    const data: unknown = JSON.parse(jsonOutput);
+    if (!isFawltyDepsOutput(data)) {
+      throw new TypeError('FawltyDeps printed an unexpected report.');
+    }
 
     const unused: AnalysisResult[] = await Promise.all(
-      (data.unused_deps || []).map(async (finding): Promise<AnalysisResult> => {
+      (data.unused_deps ?? []).map(async (finding): Promise<AnalysisResult> => {
         const sourceFile = finding.references[0]?.path ?? this.manifestFile;
         return {
           status: DependencyStatus.UNUSED,
@@ -198,7 +255,7 @@ export class FawltyDepsChecker implements IDependencyChecker {
       }),
     );
 
-    const undeclared: AnalysisResult[] = (data.undeclared_deps || []).map(
+    const undeclared: AnalysisResult[] = (data.undeclared_deps ?? []).map(
       (finding): AnalysisResult => ({
         status: DependencyStatus.UNDECLARED,
         category: DependencyCategory.UNKNOWN,

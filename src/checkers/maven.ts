@@ -55,7 +55,7 @@ export class MavenChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn.bind(this);
+    this.runFn = runFn ?? this.defaultRunFn.bind(this);
   }
 
   /**
@@ -82,8 +82,11 @@ export class MavenChecker implements IDependencyChecker {
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
-        const stderr = (error as { stderr: string }).stderr;
-        if (stderr.includes('command not found')) {
+        const stderr: unknown = error.stderr;
+        if (
+          typeof stderr === 'string' &&
+          stderr.includes('command not found')
+        ) {
           throw new ToolConfigurationError(
             '`mvn` is not installed.',
             'https://maven.apache.org/install.html',

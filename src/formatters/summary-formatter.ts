@@ -3,13 +3,10 @@
  * @file
  */
 import { error, summary } from '@actions/core';
-import { context } from '@actions/github';
+import { createContext } from '../new-context.js';
 import { DependencyStatus } from '../types.js';
 import type { AnalysisResult } from '../types.js';
 import type { IFormatter } from '../interfaces.js';
-
-type Context = typeof context;
-const ContextCtor = context.constructor as new () => Context;
 
 type SummaryTableRow = { data: string; header?: boolean }[];
 
@@ -131,7 +128,7 @@ export class SummaryFormatter implements IFormatter {
       serverUrl,
       repo: { owner, repo: name },
       sha,
-    } = new ContextCtor();
+    } = createContext();
 
     if (!serverUrl || !owner || !name || !sha) {
       throw new Error(
