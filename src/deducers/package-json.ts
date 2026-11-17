@@ -31,15 +31,16 @@ export class PackageJsonDeducer implements IPositionDeducer {
       const content: string = await readFile(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
-      for (const [index, line] of lines.entries()) {
-        // Look for keys like "package-name": "version"
-        const regex = new RegExp(String.raw`^\s*"${dependencyName}"\s*:`);
-        if (regex.test(line)) {
-          return {
-            line: index + 1,
-            column: line.indexOf(`"${dependencyName}"`) + 1,
-          };
-        }
+      // Look for keys like "package-name": "version"
+      const regex = new RegExp(String.raw`^\s*"${dependencyName}"\s*:`, 'u');
+      const found = lines
+        .map((line, index) => ({ line, index }))
+        .find(({ line }) => regex.test(line));
+      if (found) {
+        return {
+          line: found.index + 1,
+          column: found.line.indexOf(`"${dependencyName}"`) + 1,
+        };
       }
     } catch {
       return null;

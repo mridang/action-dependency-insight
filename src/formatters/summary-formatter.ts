@@ -3,10 +3,10 @@
  * @file
  */
 import { error, summary } from '@actions/core';
-import type { AnalysisResult } from '../types.js';
-import { DependencyStatus } from '../types.js';
-import type { IFormatter } from '../interfaces.js';
 import { context } from '@actions/github';
+import { DependencyStatus } from '../types.js';
+import type { AnalysisResult } from '../types.js';
+import type { IFormatter } from '../interfaces.js';
 
 type Context = typeof context;
 const ContextCtor = context.constructor as new () => Context;
@@ -40,6 +40,7 @@ export class SummaryFormatter implements IFormatter {
    * this.createAnnotations(results);
    */
   private createAnnotations(results: AnalysisResult[]): void {
+    // eslint-disable-next-line functional/no-loop-statements -- the loop only writes one workflow annotation per result
     for (const result of results) {
       if (result.position) {
         error(`Unused dependency: ${result.dependency.name}`, {

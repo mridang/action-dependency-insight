@@ -3,19 +3,19 @@
  * vm context and check the outcome written to the job summary.
  * @file
  */
-import { describe, expect, test } from '@jest/globals';
 import { copyFile, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 // noinspection ES6PreferShortImport
-import { withTemporaryDir } from './helpers/with-temporary-dir.js';
-import { withEnvVariables } from './helpers/with-env-variables.js';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
-import vm, { constants as VM } from 'node:vm';
+import vm, { constants } from 'node:vm';
+import { describe, expect, test } from '@jest/globals';
 import { rollup } from 'rollup';
-import createRollupConfig from '../rollup.config.mjs';
 // eslint-disable-next-line e18e/ban-dependencies -- the test signs tokens with jsonwebtoken, the same library the action verifies with, so swapping it would change what is under test
 import jwt from 'jsonwebtoken';
+import createRollupConfig from '../rollup.config.mjs';
+import { withEnvVariables } from './helpers/with-env-variables.js';
+import { withTemporaryDir } from './helpers/with-temporary-dir.js';
 
 /**
  * Bundle the project using the local rollup.config.mjs and write the output
@@ -127,7 +127,7 @@ async function runAction(
       // eslint-disable-next-line sonarjs/code-eval -- the test deliberately runs the bundled action inside a vm context
       const result = vm.runInContext(script, context, {
         filename: actionScript,
-        importModuleDynamically: VM.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+        importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
       }) as unknown;
 
       await result;
@@ -172,8 +172,8 @@ describe('Action Integration Tests', () => {
     },
   ];
 
-  test.each(testMatrix)('$description', async (params) => {
-    return withTemporaryDir(async ({ tmp }) => {
+  test.each(testMatrix)('$description', async (params) =>
+    withTemporaryDir(async ({ tmp }) => {
       await writeFile(
         path.join(tmp, 'package.json'),
         JSON.stringify(params.packageJson),
@@ -197,6 +197,6 @@ describe('Action Integration Tests', () => {
       await (params.expectToThrow
         ? expect(action()).rejects.toThrow(params.expectedErrorMessage)
         : expect(action()).resolves.not.toThrow());
-    })();
-  });
+    })(),
+  );
 });

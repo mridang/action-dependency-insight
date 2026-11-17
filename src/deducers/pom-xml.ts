@@ -16,15 +16,10 @@ import type { Position } from '../types.js';
  * const block = collectBlockLines(['<dependency>', '</dependency>'], 0);
  */
 function collectBlockLines(lines: string[], start: number): string[] {
-  const blockLines: string[] = [];
-  for (
-    let index = start;
-    index < lines.length && !lines[index].includes('</dependency>');
-    index++
-  ) {
-    blockLines.push(lines[index]);
-  }
-  return blockLines;
+  const closing = lines.findIndex(
+    (line, index) => index >= start && line.includes('</dependency>'),
+  );
+  return lines.slice(start, closing === -1 ? lines.length : closing);
 }
 
 /**
@@ -42,8 +37,11 @@ function findDeclaration(
   groupId: string,
   artifactId: string,
 ): Position | null {
-  for (const [index, line] of lines.entries()) {
-    if (line.includes('<dependency>')) {
+  const found = lines
+    .flatMap((line, index) =>
+      line.includes('<dependency>') ? [{ line, index }] : [],
+    )
+    .find(({ index }) => {
       const blockLines = collectBlockLines(lines, index);
       const hasGroupId = blockLines.some((blockLine) =>
         blockLine.includes(`<groupId>${groupId}</groupId>`),
@@ -51,14 +49,13 @@ function findDeclaration(
       const hasArtifactId = blockLines.some((blockLine) =>
         blockLine.includes(`<artifactId>${artifactId}</artifactId>`),
       );
-
-      if (hasGroupId && hasArtifactId) {
-        return {
-          line: index + 1,
-          column: line.indexOf('<dependency>') + 1,
-        };
-      }
-    }
+      return hasGroupId && hasArtifactId;
+    });
+  if (found) {
+    return {
+      line: found.index + 1,
+      column: found.line.indexOf('<dependency>') + 1,
+    };
   }
   return null;
 }

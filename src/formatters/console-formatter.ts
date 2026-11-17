@@ -2,8 +2,8 @@
  * Renders analysis results as a colour-coded table for the console.
  * @file
  */
-import type { AnalysisResult } from '../types.js';
 import { DependencyStatus } from '../types.js';
+import type { AnalysisResult } from '../types.js';
 import type { IFormatter } from '../interfaces.js';
 
 const colors = {
@@ -37,10 +37,10 @@ export class ConsoleFormatter implements IFormatter {
       return;
     }
 
-    const outputBuilder: string[] = ['\n--- Dependency Analysis Results ---'];
-
-    const tableLines = this.buildTable(results);
-    outputBuilder.push(...tableLines);
+    const outputBuilder = [
+      '\n--- Dependency Analysis Results ---',
+      ...this.buildTable(results),
+    ];
 
     console.log(outputBuilder.join('\n'));
     console.log(helpText);

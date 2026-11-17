@@ -3,14 +3,14 @@
  * project and check whether it fails as expected.
  * @file
  */
-import { describe, expect, test } from '@jest/globals';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { tmpdir } from 'node:os';
+import { describe, expect, test } from '@jest/globals';
 // noinspection ES6PreferShortImport
 import { run } from '../src/index.js';
 import { withTemporaryDir } from './helpers/with-temporary-dir.js';
 import { withEnvVariables } from './helpers/with-env-variables.js';
-import { tmpdir } from 'node:os';
 
 /**
  * A test helper to execute the main action script (`run`) within a
@@ -87,8 +87,8 @@ describe('Action Integration Tests', () => {
     },
   ];
 
-  test.each(testMatrix)('$description', async (params) => {
-    return withTemporaryDir(async ({ tmp }) => {
+  test.each(testMatrix)('$description', async (params) =>
+    withTemporaryDir(async ({ tmp }) => {
       await writeFile(
         path.join(tmp, 'package.json'),
         JSON.stringify(params.packageJson),
@@ -114,6 +114,6 @@ describe('Action Integration Tests', () => {
       await (params.expectToThrow
         ? expect(action()).rejects.toThrow(params.expectedErrorMessage)
         : expect(action()).resolves.not.toThrow());
-    })();
-  });
+    })(),
+  );
 });

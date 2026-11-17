@@ -4,15 +4,16 @@
  */
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { MAX_OUTPUT_BUFFER } from './exec-options.js';
 import { readFile } from 'node:fs/promises';
-import { pathExists } from './path-exists.js';
 import path from 'node:path';
-import { load, type CheerioAPI } from 'cheerio';
-import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
-import type { AnalysisResult } from '../types.js';
+import { load } from 'cheerio';
 import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
+import { pathExists } from './path-exists.js';
+import { MAX_OUTPUT_BUFFER } from './exec-options.js';
+import type { AnalysisResult } from '../types.js';
+import type { CheerioAPI } from 'cheerio';
+import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import type { Element } from 'domhandler';
 
 const execAsync = promisify(exec);
@@ -149,19 +150,14 @@ export class MavenChecker implements IDependencyChecker {
     status: DependencyStatus,
     projectPath: string,
   ): Promise<AnalysisResult[]> {
-    const rows: string[][] = [];
     const table = $(`#${sectionId}`).parent().find('table');
 
-    table.find('tr').each((_: number, row: Element) => {
-      const cells: string[] = $(row)
+    const rows = Array.from(table.find('tr'), (row: Element): string[] =>
+      $(row)
         .find('td')
         .map((__: number, cell: Element) => $(cell).text())
-        .get();
-
-      if (cells.length >= 7) {
-        rows.push(cells);
-      }
-    });
+        .get(),
+    ).filter((cells) => cells.length >= 7);
 
     return Promise.all(
       rows.map(async (cells): Promise<AnalysisResult> => {
