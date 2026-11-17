@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
+import { hasProperty, isOptionalListOf, isString } from './json-guards.js';
 import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import type { AnalysisResult } from '../types.js';
 
@@ -16,8 +17,8 @@ type RunFunction = (projectPath: string) => Promise<string>;
 
 interface KnipIssue {
   name: string;
-  line: number;
-  col: number;
+  line?: number;
+  col?: number;
 }
 interface KnipFileIssues {
   file: string;
@@ -27,7 +28,7 @@ interface KnipFileIssues {
   unresolved?: KnipIssue[];
 }
 const issueProcessors: {
-  key: keyof KnipFileIssues;
+  key: Exclude<keyof KnipFileIssues, 'file'>;
   status: DependencyStatus;
   category: DependencyCategory;
 }[] = [
@@ -52,6 +53,63 @@ const issueProcessors: {
     category: DependencyCategory.UNKNOWN,
   },
 ];
+
+/**
+ * Tells whether a parsed JSON value is absent or a number.
+ * @param value - The parsed JSON value.
+ * @returns True when the value is `undefined` or a number.
+ * @example
+ * isOptionalNumber(undefined); // true
+ */
+function isOptionalNumber(value: unknown): boolean {
+  return value === undefined || typeof value === 'number';
+}
+
+/**
+ * Tells whether a parsed JSON value is a Knip issue.
+ * @param value - The parsed JSON value.
+ * @returns True when the value has a string name and numeric position fields, if any.
+ * @example
+ * isKnipIssue({ name: 'left-pad' }); // true
+ */
+function isKnipIssue(value: unknown): value is KnipIssue {
+  return (
+    hasProperty(value, 'name', isString) &&
+    hasProperty(value, 'line', isOptionalNumber) &&
+    hasProperty(value, 'col', isOptionalNumber)
+  );
+}
+
+/**
+ * Tells whether a parsed JSON value is one file's Knip issues.
+ * @param value - The parsed JSON value.
+ * @returns True when the value names a file and lists issues per category.
+ * @example
+ * isKnipFileIssues({ file: 'package.json' }); // true
+ */
+function isKnipFileIssues(value: unknown): value is KnipFileIssues {
+  return (
+    hasProperty(value, 'file', isString) &&
+    issueProcessors.every((processor) =>
+      hasProperty(value, processor.key, (issues) =>
+        isOptionalListOf(issues, isKnipIssue),
+      ),
+    )
+  );
+}
+
+/**
+ * Tells whether a parsed JSON value has the shape of Knip's report.
+ * @param value - The parsed JSON value.
+ * @returns True when the value is a Knip report.
+ * @example
+ * isKnipOutput({ issues: [] }); // true
+ */
+function isKnipOutput(value: unknown): value is { issues?: KnipFileIssues[] } {
+  return hasProperty(value, 'issues', (issues) =>
+    isOptionalListOf(issues, isKnipFileIssues),
+  );
+}
 
 const helpText = `
 <br />
@@ -86,7 +144,7 @@ export class KnipChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn.bind(this);
+    this.runFn = runFn ?? this.defaultRunFn.bind(this);
   }
 
   /**
@@ -113,8 +171,11 @@ export class KnipChecker implements IDependencyChecker {
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
-        const stderr = (error as { stderr: string }).stderr;
-        if (stderr.includes('command not found')) {
+        const stderr: unknown = error.stderr;
+        if (
+          typeof stderr === 'string' &&
+          stderr.includes('command not found')
+        ) {
           throw new ToolConfigurationError(
             '`knip` is not installed.',
             'https://github.com/icanhazstring/composer-unused#installation',
@@ -160,13 +221,16 @@ export class KnipChecker implements IDependencyChecker {
    * const results = this.parseOutput('{"issues":[]}');
    */
   private parseOutput(jsonOutput: string): AnalysisResult[] {
-    const parsedData = JSON.parse(jsonOutput) as { issues?: KnipFileIssues[] };
-    const data: KnipFileIssues[] = parsedData.issues || [];
+    const parsedData: unknown = JSON.parse(jsonOutput);
+    if (!isKnipOutput(parsedData)) {
+      throw new TypeError('Knip printed an unexpected report.');
+    }
+    const data: KnipFileIssues[] = parsedData.issues ?? [];
 
     return data.flatMap((file) =>
       issueProcessors.flatMap(
         (processor) =>
-          (file[processor.key] as KnipIssue[])?.map((dep) => ({
+          file[processor.key]?.map((dep) => ({
             status: processor.status,
             category: processor.category,
             dependency: { name: dep.name },

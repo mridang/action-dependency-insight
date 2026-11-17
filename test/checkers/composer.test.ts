@@ -26,14 +26,26 @@ describe('ComposerUnusedChecker (Docker)', () => {
 
   test('should throw an error if command is not found', async () => {
     const errorRunFn = async (): Promise<string> => {
-      const err = new Error('Command failed');
-      // @ts-expect-error since this is a test
-      (err as never).stderr = 'command not found';
-      throw err;
+      throw Object.assign(new Error('Command failed'), {
+        stderr: 'command not found',
+      });
     };
     const checker = new ComposerUnusedChecker(
       new ComposerJsonDeducer(),
       errorRunFn,
+    );
+    await assert.rejects(
+      async () => checker.run(projectPath, true),
+      ToolConfigurationError,
+    );
+  });
+
+  test('should throw an error when the tool prints an unexpected report', async () => {
+    const malformedRunFn = async (): Promise<string> =>
+      '{"unused-packages":"lodash"}';
+    const checker = new ComposerUnusedChecker(
+      new ComposerJsonDeducer(),
+      malformedRunFn,
     );
     await assert.rejects(
       async () => checker.run(projectPath, true),

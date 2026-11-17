@@ -26,10 +26,9 @@ describe('MavenChecker (Docker)', () => {
 
   test('should throw an error if command is not found', async () => {
     const errorRunFn = async (): Promise<string> => {
-      const err = new Error('Command failed');
-      // @ts-expect-error since this is a test
-      (err as never).stderr = 'command not found';
-      throw err;
+      throw Object.assign(new Error('Command failed'), {
+        stderr: 'command not found',
+      });
     };
     const checker = new MavenChecker(new PomXmlDeducer(), errorRunFn);
     await assert.rejects(

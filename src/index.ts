@@ -11,14 +11,13 @@ import {
   setFailed as actionFailed,
   startGroup,
 } from '@actions/core';
-import { context } from '@actions/github';
+import { createContext } from './new-context.js';
 import { getCheckersForProject } from './checkers/index.js';
 import { ConsoleFormatter } from './formatters/console-formatter.js';
 import { SummaryFormatter } from './formatters/summary-formatter.js';
 import type { AnalysisResult } from './types.js';
 
-type Context = typeof context;
-const ContextCtor = context.constructor as new () => Context;
+type Context = ReturnType<typeof createContext>;
 
 /**
  * Retrieves the working directory from the action's 'working-directory' input.
@@ -62,7 +61,7 @@ const consoleFormatter = new ConsoleFormatter();
  */
 // noinspection JSUnusedLocalSymbols
 
-export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
+export async function run(_ghCtx: Context = createContext()): Promise<void> {
   try {
     const workingDirectory = getWorkingDirectory();
     info(`Analyzing project at: ${workingDirectory}`);
@@ -101,7 +100,7 @@ export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
     if (error instanceof Error) {
       setFailed(error);
     } else {
-      setFailed(error as string);
+      setFailed(String(error));
     }
   }
 }

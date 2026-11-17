@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
 import { MAX_OUTPUT_BUFFER } from './exec-options.js';
+import { hasProperty, isOptionalListOf, isString } from './json-guards.js';
 import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
 import type { AnalysisResult } from '../types.js';
 
@@ -16,6 +17,19 @@ type RunFunction = (projectPath: string) => Promise<string>;
 
 interface ComposerUnusedOutput {
   'unused-packages'?: string[];
+}
+
+/**
+ * Tells whether a parsed JSON value has the shape of composer-unused's report.
+ * @param value - The parsed JSON value.
+ * @returns True when the value is a composer-unused report.
+ * @example
+ * isComposerUnusedOutput({ 'unused-packages': [] }); // true
+ */
+function isComposerUnusedOutput(value: unknown): value is ComposerUnusedOutput {
+  return hasProperty(value, 'unused-packages', (packages) =>
+    isOptionalListOf(packages, isString),
+  );
 }
 
 const helpText = `
@@ -50,7 +64,7 @@ export class ComposerUnusedChecker implements IDependencyChecker {
     private readonly deducer: IPositionDeducer,
     runFn?: RunFunction,
   ) {
-    this.runFn = runFn || this.defaultRunFn.bind(this);
+    this.runFn = runFn ?? this.defaultRunFn.bind(this);
   }
 
   /**
@@ -77,8 +91,11 @@ export class ComposerUnusedChecker implements IDependencyChecker {
       };
     } catch (error: unknown) {
       if (error instanceof Error && 'stderr' in error) {
-        const stderr = (error as { stderr: string }).stderr;
-        if (stderr.includes('command not found')) {
+        const stderr: unknown = error.stderr;
+        if (
+          typeof stderr === 'string' &&
+          stderr.includes('command not found')
+        ) {
           throw new ToolConfigurationError(
             '`composer-unused` is not installed.',
             'https://github.com/icanhazstring/composer-unused#installation',
@@ -127,11 +144,14 @@ export class ComposerUnusedChecker implements IDependencyChecker {
     jsonOutput: string,
     projectPath: string,
   ): Promise<AnalysisResult[]> {
-    const data = JSON.parse(jsonOutput) as ComposerUnusedOutput;
+    const data: unknown = JSON.parse(jsonOutput);
+    if (!isComposerUnusedOutput(data)) {
+      throw new TypeError('composer-unused printed an unexpected report.');
+    }
     const manifestPath = `${projectPath}/${this.manifestFile}`;
 
     return Promise.all(
-      (data['unused-packages'] || [])
+      (data['unused-packages'] ?? [])
         .filter((pkg) => pkg !== 'php')
         .map(async (pkg): Promise<AnalysisResult> => ({
           status: DependencyStatus.UNUSED,

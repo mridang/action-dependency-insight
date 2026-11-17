@@ -66,14 +66,16 @@ export class ConsoleFormatter implements IFormatter {
       };
     });
 
-    const headers = Object.keys(tableData[0]);
+    const headers = [
+      'Status',
+      'Dependency',
+      'Version',
+      'Category',
+      'Optional',
+      'Location',
+    ] as const;
     const columnWidths = headers.map((header) =>
-      Math.max(
-        header.length,
-        ...tableData.map(
-          (row) => (row[header as keyof typeof row] || '').length,
-        ),
-      ),
+      Math.max(header.length, ...tableData.map((row) => row[header].length)),
     );
 
     const headerRow = headers
@@ -93,7 +95,7 @@ export class ConsoleFormatter implements IFormatter {
         `${statusColor}${row.Status.padEnd(columnWidths[0])}${colors.reset}`,
         `${colors.cyan}${row.Dependency.padEnd(columnWidths[1])}${colors.reset}`,
         (row.Version || '').padEnd(columnWidths[2]),
-        (row.Category || '').padEnd(columnWidths[3]),
+        row.Category.padEnd(columnWidths[3]),
         (row.Optional || '').padEnd(columnWidths[4]),
         `${colors.gray}${(row.Location || '').padEnd(columnWidths[5])}${colors.reset}`,
       ].join(' | ');
