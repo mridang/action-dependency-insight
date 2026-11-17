@@ -26,7 +26,7 @@ export function withEnvVariables<T>(
   return async () => {
     const originalValues: Record<string, string | undefined> = {};
 
-    for (const key in env) {
+    for (const key of Object.keys(env)) {
       originalValues[key] = process.env[key];
       const nextValue = env[key];
 

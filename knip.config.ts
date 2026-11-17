@@ -4,5 +4,5 @@
  */
 export default {
   ignore: ['test/checkers/**'],
-  ignoreDependencies: [/^@semantic-release\//, 'semantic-release-major-tag'],
+  ignoreDependencies: [/^@semantic-release\//u, 'semantic-release-major-tag'],
 };

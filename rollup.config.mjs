@@ -2,16 +2,16 @@
  * Rollup configuration that bundles the action into a single CommonJS file.
  * @file
  */
+import { builtinModules } from 'node:module';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
-import { builtinModules } from 'node:module';
 import json from '@rollup/plugin-json';
 
 const NODE_BUILTINS = builtinModules.flatMap((name) => [name, `node:${name}`]);
 
 /** Matches the `node_modules` folder in a module id. */
-const NODE_MODULES_PATH = /node_modules/;
+const NODE_MODULES_PATH = /node_modules/u;
 
 /**
  * Builds the Rollup options for the action, with optional overrides for the

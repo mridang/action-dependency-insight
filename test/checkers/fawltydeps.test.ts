@@ -8,8 +8,8 @@ import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { FawltyDepsChecker } from '../../src/checkers/fawltydeps.js';
 import { PyprojectTomlDeducer } from '../../src/deducers/pyproject-toml.js';
-import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
+import type { AnalysisResult } from '../../src/types.js';
 
 describe('FawltyDepsChecker (Docker)', () => {
   const projectPath = path.resolve(process.cwd(), 'test/checkers/python');

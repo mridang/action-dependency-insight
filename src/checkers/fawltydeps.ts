@@ -4,13 +4,13 @@
  */
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { MAX_OUTPUT_BUFFER } from './exec-options.js';
-import { pathExists } from './path-exists.js';
 import path from 'node:path';
-import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
-import type { AnalysisResult } from '../types.js';
 import { DependencyCategory, DependencyStatus } from '../types.js';
 import { ToolConfigurationError } from '../errors.js';
+import { MAX_OUTPUT_BUFFER } from './exec-options.js';
+import { pathExists } from './path-exists.js';
+import type { IDependencyChecker, IPositionDeducer } from '../interfaces.js';
+import type { AnalysisResult } from '../types.js';
 
 const execAsync = promisify(exec);
 

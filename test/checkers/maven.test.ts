@@ -6,10 +6,10 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
-import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
 import { MavenChecker } from '../../src/checkers/maven.js';
 import { PomXmlDeducer } from '../../src/deducers/pom-xml.js';
+import type { AnalysisResult } from '../../src/types.js';
 
 describe('MavenChecker (Docker)', () => {
   const projectPath = path.resolve(process.cwd(), 'test/checkers/maven');

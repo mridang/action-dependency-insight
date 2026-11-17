@@ -11,11 +11,11 @@ import {
   setFailed as actionFailed,
   startGroup,
 } from '@actions/core';
-import type { AnalysisResult } from './types.js';
+import { context } from '@actions/github';
 import { getCheckersForProject } from './checkers/index.js';
 import { ConsoleFormatter } from './formatters/console-formatter.js';
 import { SummaryFormatter } from './formatters/summary-formatter.js';
-import { context } from '@actions/github';
+import type { AnalysisResult } from './types.js';
 
 type Context = typeof context;
 const ContextCtor = context.constructor as new () => Context;
@@ -71,19 +71,20 @@ export async function run(_ghCtx: Context = new ContextCtor()): Promise<void> {
 
     if (selectedCheckers.length === 0) {
       setFailed('Could not detect a supported project type.');
-      return;
     } else {
-      let helpText = '';
-      let allResults: AnalysisResult[] = [];
-
-      await selectedCheckers.reduce(async (previous, checker) => {
-        await previous;
-        startGroup(`Running ${checker.name}`);
-        const results = await checker.run(workingDirectory, isDebug());
-        allResults = [...allResults, ...results.checkResult];
-        helpText = helpText + results.helpText;
-        endGroup();
-      }, Promise.resolve());
+      const { allResults, helpText } = await selectedCheckers.reduce(
+        async (previous, checker) => {
+          const collected = await previous;
+          startGroup(`Running ${checker.name}`);
+          const results = await checker.run(workingDirectory, isDebug());
+          endGroup();
+          return {
+            allResults: [...collected.allResults, ...results.checkResult],
+            helpText: collected.helpText + results.helpText,
+          };
+        },
+        Promise.resolve({ allResults: [] as AnalysisResult[], helpText: '' }),
+      );
 
       if (allResults.length > 0) {
         await summaryFormatter.format(allResults, helpText);

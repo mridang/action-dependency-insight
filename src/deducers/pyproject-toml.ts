@@ -32,14 +32,15 @@ export class PyprojectTomlDeducer implements IPositionDeducer {
       const content: string = await readFile(manifestPath, 'utf8');
       const lines: string[] = content.split('\n');
 
-      for (const [index, rawLine] of lines.entries()) {
+      const index = lines.findIndex((rawLine) => {
         const line: string = rawLine.trim();
-        if (
+        return (
           line.startsWith(dependencyName) ||
           line.startsWith(`"${dependencyName}"`)
-        ) {
-          return { line: index + 1, column: 1 };
-        }
+        );
+      });
+      if (index !== -1) {
+        return { line: index + 1, column: 1 };
       }
     } catch {
       return null;

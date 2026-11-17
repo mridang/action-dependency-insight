@@ -8,8 +8,8 @@ import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { KnipChecker } from '../../src/checkers/knip.js';
 import { PackageJsonDeducer } from '../../src/deducers/package-json.js';
-import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
+import type { AnalysisResult } from '../../src/types.js';
 
 describe('KnipChecker (Docker)', () => {
   const projectPath = path.resolve(process.cwd(), 'test/checkers/node');

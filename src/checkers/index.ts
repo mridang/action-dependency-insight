@@ -3,17 +3,17 @@
  * project based on the manifest files present in its root.
  * @file
  */
-import { pathExists } from './path-exists.js';
 import path from 'node:path';
-import type { IDependencyChecker } from '../interfaces.js';
-import { KnipChecker } from './knip.js';
-import { ComposerUnusedChecker } from './composer.js';
-import { FawltyDepsChecker } from './fawltydeps.js';
 import { PackageJsonDeducer } from '../deducers/package-json.js';
 import { ComposerJsonDeducer } from '../deducers/composer-json.js';
 import { PyprojectTomlDeducer } from '../deducers/pyproject-toml.js';
-import { MavenChecker } from './maven.js';
 import { PomXmlDeducer } from '../deducers/pom-xml.js';
+import { KnipChecker } from './knip.js';
+import { ComposerUnusedChecker } from './composer.js';
+import { FawltyDepsChecker } from './fawltydeps.js';
+import { MavenChecker } from './maven.js';
+import { pathExists } from './path-exists.js';
+import type { IDependencyChecker } from '../interfaces.js';
 
 const allCheckers: IDependencyChecker[] = [
   new KnipChecker(new PackageJsonDeducer()),

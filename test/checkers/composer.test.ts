@@ -8,8 +8,8 @@ import { execSync } from 'node:child_process';
 import { describe, test } from '@jest/globals';
 import { ComposerUnusedChecker } from '../../src/checkers/composer.js';
 import { ComposerJsonDeducer } from '../../src/deducers/composer-json.js';
-import type { AnalysisResult } from '../../src/types.js';
 import { ToolConfigurationError } from '../../src/errors.js';
+import type { AnalysisResult } from '../../src/types.js';
 
 describe('ComposerUnusedChecker (Docker)', () => {
   const projectPath = path.resolve(process.cwd(), 'test/checkers/composer');
